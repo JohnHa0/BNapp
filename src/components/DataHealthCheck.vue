@@ -1,69 +1,77 @@
 <template>
-  <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mt-6">
-    <div class="flex justify-between items-center mb-6 border-b pb-3">
-      <h2 class="text-xl font-bold text-gray-800 flex items-center">
-        <i class="fas fa-heartbeat text-rose-500 mr-2"></i> 数据健康体检报告
+  <div class="bg-white p-6 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] border border-slate-100 flex flex-col h-full max-h-[85vh]">
+    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4 shrink-0">
+      <h2 class="text-xl font-bold text-deep-blue flex items-center">
+        <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center mr-3">
+            <i class="fas fa-heartbeat text-indigo-500"></i>
+        </div> 
+        数据健康体检引擎 (Data Diagnostics)
       </h2>
-      <div v-if="isChecking" class="text-sm text-indigo-600 font-medium flex items-center">
-        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        正在执行深度扫描...
+      <div v-if="isChecking" class="text-sm text-indigo-600 font-bold flex items-center bg-indigo-50 px-3 py-1.5 rounded-full">
+        <i class="fas fa-circle-notch fa-spin mr-2"></i> 正在执行 N 维张量合规性扫描...
       </div>
-      <div v-else-if="checkComplete && fatalErrors.length === 0" class="text-sm font-bold text-green-600 bg-green-50 px-3 py-1 rounded">
-        <i class="fas fa-check-circle mr-1"></i> 校验通过，可运行模型
+      <div v-else-if="checkComplete && fatalErrors.length === 0 && warnings.length === 0" class="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full shadow-inner border border-emerald-100">
+        <i class="fas fa-shield-check mr-1"></i> 全维效验通过，数据高度健康
       </div>
     </div>
 
-    <div v-if="checkComplete" class="space-y-4">
-      
-      <div v-if="fatalErrors.length > 0" class="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <h3 class="text-sm font-bold text-red-800 mb-2 flex items-center">
-          <i class="fas fa-times-circle mr-2"></i> 致命错误 (必须修复)
+    <div class="flex-1 overflow-y-auto space-y-4 pr-2">
+      <div v-if="fatalErrors.length > 0" class="p-4 bg-rose-50 border border-rose-200 rounded-xl shadow-sm">
+        <h3 class="text-sm font-bold text-rose-800 mb-3 flex items-center">
+          <i class="fas fa-radiation mr-2 text-rose-600"></i> 致命错误 (阻断模型构建)
         </h3>
         <ul class="space-y-2">
-          <li v-for="(err, idx) in fatalErrors" :key="idx" class="text-sm text-red-700 bg-white p-2 rounded border border-red-100 flex justify-between items-center">
-            <span><strong>{{ err.column }}</strong>: {{ err.message }}</span>
+          <li v-for="(err, idx) in fatalErrors" :key="idx" class="text-sm text-rose-700 bg-white p-3 rounded-lg border border-rose-100 shadow-sm flex items-start">
+            <i class="fas fa-times-circle mt-0.5 mr-2 text-rose-500"></i>
+            <div>
+              <strong>{{ err.column }}</strong>: {{ err.message }}
+            </div>
           </li>
         </ul>
       </div>
 
-      <div v-if="warnings.length > 0" class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <h3 class="text-sm font-bold text-yellow-800 mb-2 flex items-center">
-          <i class="fas fa-exclamation-triangle mr-2"></i> 数据预警 (建议修复)
+      <div v-if="warnings.length > 0" class="p-4 bg-amber-50 border border-amber-200 rounded-xl shadow-sm">
+        <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center">
+          <i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> 质量预警 (非致死但影响推演精度)
         </h3>
         <ul class="space-y-2">
-          <li v-for="(warn, idx) in warnings" :key="idx" class="text-sm text-yellow-700 bg-white p-2 rounded border border-yellow-100 flex justify-between items-center">
-            <span><strong>{{ warn.column }}</strong>: {{ warn.message }}</span>
+          <li v-for="(warn, idx) in warnings" :key="idx" class="text-sm text-amber-700 bg-white p-3 rounded-lg border border-amber-100 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div class="flex items-start">
+               <i class="fas fa-info-circle mt-0.5 mr-2 text-amber-400"></i>
+               <div><strong>{{ warn.column }}</strong>: {{ warn.message }}</div>
+            </div>
             
-            <button v-if="warn.fixable" @click="applyAutoFix(warn)" class="px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs font-semibold rounded transition-colors">
-              <i class="fas fa-wrench mr-1"></i>一键均值填充
-            </button>
-            <button v-if="warn.type === 'zero_variance'" @click="removeColumn(warn.column)" class="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-800 text-xs font-semibold rounded transition-colors">
-              <i class="fas fa-trash-alt mr-1"></i>移除该变量
-            </button>
+            <div class="flex space-x-2 shrink-0">
+                <button v-if="warn.type === 'missing'" @click="applyAutoFix(warn)" class="px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold rounded flex items-center shadow-sm transition-colors border border-emerald-200">
+                  <i class="fas fa-magic mr-1.5"></i> 一键均值填充弥合
+                </button>
+                <button v-if="warn.type === 'zero_variance' || warn.type === 'missing'" @click="removeColumn(warn.column)" class="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-bold rounded flex items-center shadow-sm transition-colors border border-rose-200">
+                  <i class="fas fa-trash-alt mr-1.5"></i> 剥离该变量
+                </button>
+            </div>
           </li>
         </ul>
       </div>
 
-      <div v-if="fatalErrors.length === 0 && warnings.length === 0" class="p-8 text-center bg-gray-50 rounded-lg border border-dashed border-gray-200">
-        <i class="fas fa-shield-check text-4xl text-green-500 mb-3"></i>
-        <p class="text-gray-600 font-medium">所有数据列均符合要求，多重共线性与方差校验完美。</p>
+      <div v-if="checkComplete && fatalErrors.length === 0 && warnings.length === 0" class="h-full min-h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+        <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
+            <i class="fas fa-check-double text-3xl text-emerald-500"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-700 mb-1">多重共线性与量纲校验完美</h3>
+        <p class="text-slate-500 text-sm">所有数据列均符合 PyMC NUTS 采样器的严苛张量计算标准。</p>
       </div>
-
     </div>
 
-    <div class="mt-6 flex justify-end space-x-3">
-      <button @click="$emit('close')" class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
-        返回微调
+    <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end space-x-3 shrink-0">
+      <button @click="$emit('close')" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+        <i class="fas fa-arrow-left mr-2"></i> 返回微调图谱
       </button>
       <button 
-        :disabled="fatalErrors.length > 0 || !checkComplete"
+        :disabled="fatalErrors.length > 0 || !checkComplete || isChecking"
         @click="generateSchemaAndProceed" 
-        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        class="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-600/30 flex items-center"
       >
-        生成配置并启动推演 <i class="fas fa-rocket ml-1"></i>
+        生成计算图谱并启动推演 <i class="fas fa-rocket ml-2"></i>
       </button>
     </div>
   </div>
@@ -72,11 +80,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-// 接收父组件传入的映射关系和解析后的宽表JSON数据
 const props = defineProps({
-  hierarchy: Array,
-  targetVariable: Object,
-  tableData: Array // 模拟解析后的CSV数组，如 [{ '建设资金': 5000, '考核得分': 90 }, ...]
+  hierarchy: Array,       // [{ level_index, level_name, id_column, covariates: [...] }] All using original keys
+  targetVariable: Object, // { name: '...', type: 'continuous' }
+  tableData: Array,       // raw dataset rows
+  displayMapping: Object  // { 'original': 'alias' }
 });
 
 const emit = defineEmits(['close', 'proceed']);
@@ -86,110 +94,123 @@ const checkComplete = ref(false);
 const fatalErrors = ref([]);
 const warnings = ref([]);
 
-// 核心：执行数据体检逻辑
+// Make mutable copies of data for "Fixing"
+let localTableData = [];
+let localHierarchy = [];
+
 const runDiagnostics = () => {
   isChecking.value = true;
   fatalErrors.value = [];
   warnings.value = [];
 
-  // 模拟一个异步扫描过程，给用户一种“系统在干活”的掌控感
+  // Clone data to avoid mutating props directly
+  localTableData = JSON.parse(JSON.stringify(props.tableData));
+  localHierarchy = JSON.parse(JSON.stringify(props.hierarchy));
+
   setTimeout(() => {
-    // 获取所有参与计算的列名 (X 和 Y)
-    let activeColumns = [];
-    if (props.targetVariable) activeColumns.push(props.targetVariable.name);
-    props.hierarchy.forEach(level => {
+    let activeColumns = [props.targetVariable.name];
+    localHierarchy.forEach(level => {
       activeColumns = activeColumns.concat(level.covariates);
     });
 
     activeColumns.forEach(colName => {
       let missingCount = 0;
       let typeErrorCount = 0;
-      const values = [];
+      const validNumbers = [];
 
-      props.tableData.forEach((row, rowIndex) => {
+      localTableData.forEach((row) => {
         const val = row[colName];
-        
-        // 1. 空值检测
         if (val === null || val === undefined || val === '') {
           missingCount++;
         } else {
-          // 2. 类型检测 (强转数字看是否为 NaN)
           const numVal = Number(val);
-          if (isNaN(numVal)) {
-            typeErrorCount++;
-          } else {
-            values.push(numVal);
-          }
+          if (isNaN(numVal)) typeErrorCount++;
+          else validNumbers.push(numVal);
         }
       });
 
-      // 生成诊断结果
+      const aliasName = props.displayMapping[colName] || colName;
+
+      // Report Errors
       if (typeErrorCount > 0) {
-        fatalErrors.value.push({
-          column: colName,
-          message: `发现 ${typeErrorCount} 处非数字内容，请检查表格格式。`
-        });
+        fatalErrors.value.push({ column: colName, alias: aliasName, message: `探测到 ${typeErrorCount} 处无法向量化的字符数据，要求纯数值。` });
       }
 
       if (missingCount > 0) {
         warnings.value.push({
           column: colName,
+          alias: aliasName,
           type: 'missing',
-          fixable: true,
-          message: `发现 ${missingCount} 处空值，可能导致模型崩溃。`
+          message: `探测到 ${missingCount} 处空洞数据 (NaN)，若直接推演将导致张量维度崩溃。`
         });
       }
 
-      // 3. 零方差检测 (所有数值都一样)
-      if (values.length > 0) {
-        const firstVal = values[0];
-        const allSame = values.every(v => v === firstVal);
-        if (allSame) {
+      // Variance check
+      if (validNumbers.length > 0) {
+        const firstVal = validNumbers[0];
+        const allSame = validNumbers.every(v => v === firstVal);
+        const hasMissing = missingCount > 0;
+        
+        if (allSame && !hasMissing) { // If it has missing, filling mean makes it 0 variance anyway.
           warnings.value.push({
             column: colName,
+            alias: aliasName,
             type: 'zero_variance',
-            fixable: false,
-            message: `该列所有数值均为 ${firstVal}，缺乏统计区分度，建议移除。`
+            message: `此变量所有已知有效值均为 ${firstVal}，零方差特征会使得逆矩阵计算呈现奇异性 (Singular Matrix)，强烈建议剥离。`
           });
         }
       }
     });
 
-    // 检查拓扑结构是否连贯
-    props.hierarchy.forEach((level, index) => {
-      if (!level.idColumn) {
-        fatalErrors.value.push({
-          column: `第 ${index + 1} 层网络 (${level.name})`,
-          message: `缺失 ID 标识映射，层级发生断裂。`
-        });
-      }
-    });
-
     isChecking.value = false;
     checkComplete.value = true;
-  }, 1200); // 模拟 1.2 秒的扫描耗时
+  }, 800);
 };
 
-// 一键修复功能：均值填充
+// Auto fix: Mean Imputation
 const applyAutoFix = (warning) => {
-  console.log(`正在对 ${warning.column} 执行均值填充...`);
-  // 实际逻辑：计算列平均值，遍历 tableData 将 null 替换为均值
-  // 填充完毕后，将该警告从 warnings 数组中移除
+  const colName = warning.column;
+  let sum = 0, count = 0;
+  
+  // Calculate mean
+  localTableData.forEach(row => {
+    const val = Number(row[colName]);
+    if (!isNaN(val)) { sum += val; count++; }
+  });
+  
+  const mean = count > 0 ? sum / count : 0;
+  
+  // Impute
+  let imputedCount = 0;
+  localTableData.forEach(row => {
+    if (row[colName] === null || row[colName] === undefined || row[colName] === '') {
+      row[colName] = mean;
+      imputedCount++;
+    }
+  });
+  
+  console.log(`[AutoFix] ${colName} 已使用均值 ${mean.toFixed(2)} 填补了 ${imputedCount} 条记录。`);
   warnings.value = warnings.value.filter(w => w !== warning);
 };
 
-// 移除变量
+// Auto fix: Drop variable
 const removeColumn = (colName) => {
-  // 实际逻辑：从 hierarchy 中找到该 covariate 并 splice 掉
+  // Remove from hierarchy
+  localHierarchy.forEach(level => {
+    level.covariates = level.covariates.filter(cov => cov !== colName);
+  });
+  
+  console.log(`[AutoFix] ${colName} 已被剥离出贝叶斯网络拓扑。`);
   warnings.value = warnings.value.filter(w => w.column !== colName);
 };
 
 const generateSchemaAndProceed = () => {
-  // 组装最终 JSON Schema 传递给 Python
   emit('proceed', {
     status: 'success',
-    hierarchy: props.hierarchy,
-    target: props.targetVariable
+    hierarchy: localHierarchy,
+    target: props.targetVariable,
+    tableData: localTableData,    // The cleaned and imputed data!
+    displayMapping: props.displayMapping
   });
 };
 
