@@ -1,248 +1,529 @@
 <template>
-  <div class="min-h-screen bg-slate-50 p-8">
-    <div class="mb-8 flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">构建层次贝叶斯网络</h1>
-        <p class="text-sm text-slate-500 mt-2">导入您的宽表数据 (CSV)，系统将自动嗅探层级与变量映射。</p>
-      </div>
-      <div class="flex space-x-4">
-        <button class="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
-          <i class="fas fa-download mr-2"></i>下载《视频侦查效能评估》模板
-        </button>
-        <label class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer transition-colors shadow-sm flex items-center">
-          <i class="fas fa-upload mr-2"></i>上传数据源 (CSV)
-          <input type="file" class="hidden" accept=".csv" @change="handleFileUpload" />
-        </label>
-      </div>
-    </div>
-
-    <div v-if="columns.length > 0" class="flex gap-6 min-h-[600px]">
-      
-      <div class="w-1/3 bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
-        <h2 class="text-lg font-bold text-slate-700 mb-4 border-b border-slate-100 pb-3">数据池 (未分配字段)</h2>
-        <div class="flex-1 overflow-y-auto space-y-3 pr-2">
-          <div v-for="col in unassignedColumns" :key="col" 
-               class="p-3 bg-slate-50 border border-slate-200 rounded-lg cursor-move hover:border-indigo-400 hover:shadow-sm transition-all flex items-center justify-between group">
-            <span class="text-sm font-medium text-slate-700">{{ col }}</span>
-            <i class="fas fa-grip-vertical text-slate-300 group-hover:text-indigo-400"></i>
-          </div>
-          <div v-if="unassignedColumns.length === 0" class="text-center text-slate-400 text-sm py-8">
-            所有字段已分配完毕
-          </div>
+  <div class="h-full bg-ice-white p-6 pb-20">
+    <div class="max-w-7xl mx-auto space-y-6">
+      <!-- Header Options -->
+      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+        <div>
+          <h1 class="text-2xl font-bold text-deep-blue">数据映射与网络拓扑构建</h1>
+          <p class="text-sm text-slate-500 mt-1">导入原始数据，或者加载系统沙盒测试集，通过直观的拖拽来构建 N 层概率依赖图。</p>
         </div>
-      </div>
-
-      <div class="w-2/3 bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
-        <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-5">
-          <h2 class="text-lg font-bold text-slate-700">网络拓扑结构</h2>
-          <button @click="showHealthCheck = true" class="px-4 py-2 text-sm font-bold text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 border border-emerald-200 transition-colors">
-            <i class="fas fa-stethoscope mr-2"></i>运行数据体检
+        <div class="flex space-x-3 items-center">
+          <select v-model="selectedDemo" @change="loadDemo" class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-medium outline-none cursor-pointer">
+            <option value="">🔮 加载通用行业沙盘模板...</option>
+            <option value="public_security">【社会治理】省市三级公安防效能评估</option>
+            <option value="health">【公共卫生】跨国-区域重症致死率归因</option>
+            <option value="retail">【商业零售】跨国总部-区域市场销量推演</option>
+          </select>
+          <span class="text-slate-300">|</span>
+          <button @click="showManualInput = true" class="px-5 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-all flex items-center">
+            <i class="fas fa-edit mr-2"></i>手动录入数据
           </button>
+          <label class="px-5 py-2.5 text-sm font-semibold text-white bg-deep-blue hover:bg-slate-800 rounded-lg cursor-pointer transition-all shadow shadow-deep-blue/30 flex items-center">
+            <i class="fas fa-file-csv mr-2 text-neon-cyan"></i>上传表格 (CSV)
+            <input type="file" class="hidden" accept=".csv" @change="handleFileUpload" />
+          </label>
         </div>
+      </div>
+
+      <!-- Main Layout -->
+      <div v-if="columns.length > 0" class="flex gap-6 items-start">
         
-        <div class="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
-          <div class="text-xs font-bold text-amber-800 mb-2 uppercase tracking-wider">靶点观测指标 (Y)</div>
-          <div v-if="targetVariable" class="text-sm font-medium text-amber-900 bg-white px-3 py-2 rounded border border-amber-100 inline-block">
-            🎯 {{ targetVariable.name }}
-          </div>
-          <div v-else class="text-sm text-amber-600/70 italic">请指定模型需要评估的目标变量...</div>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto space-y-6 pr-2">
-          <div v-for="(level, index) in hierarchy" :key="index" class="p-5 bg-indigo-50/40 border border-indigo-100 rounded-xl relative">
-            <div class="absolute -left-3 top-6 w-7 h-7 bg-indigo-100 rounded-full border-2 border-white flex items-center justify-center text-xs text-indigo-700 font-bold shadow-sm">
-              L{{ index + 1 }}
-            </div>
-            
-            <div class="flex justify-between items-center mb-4 pl-4">
-              <input v-model="level.level_name" class="text-lg font-bold text-indigo-900 bg-transparent border-b border-dashed border-indigo-300 focus:outline-none focus:border-indigo-600 pb-1 w-1/2" placeholder="定义层级名称 (如: 战役层)"/>
-              <button @click="removeLevel(index)" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fas fa-times"></i></button>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-5 pl-4">
-              <div class="bg-white p-4 rounded-lg border border-slate-200">
-                <div class="text-xs font-bold text-slate-500 mb-3">节点 ID 标识列</div>
-                <div v-if="level.id_column" class="text-sm font-medium bg-blue-50 text-blue-700 p-2 rounded border border-blue-100 flex items-center">
-                  <i class="fas fa-sitemap mr-2 text-blue-400"></i>{{ level.id_column }}
-                </div>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-slate-200">
-                <div class="text-xs font-bold text-slate-500 mb-3">环境协变量 (X)</div>
-                <div class="space-y-2">
-                  <div v-for="cov in level.covariates" :key="cov" class="text-sm font-medium bg-emerald-50 text-emerald-700 p-2 rounded border border-emerald-100 flex items-center">
-                    <i class="fas fa-chart-line mr-2 text-emerald-400"></i>{{ cov }}
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!-- Left: Unassigned Columns -->
+        <div class="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200">
+          <div class="p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl flex justify-between items-center">
+            <h2 class="font-bold text-slate-700"><i class="fas fa-database mr-2 text-slate-400"></i> 数据要素池 (Data Pool)</h2>
+            <span class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">{{ unassignedColumns.length }}</span>
           </div>
           
-          <button @click="addLevel" class="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 transition-all font-medium text-sm">
-            <i class="fas fa-plus mr-2"></i>添加下级网络节点
-          </button>
+          <div 
+            class="p-4 min-h-[500px] max-h-[700px] overflow-y-auto space-y-3 bg-white"
+            @dragover.prevent
+            @drop="onDropUnassigned"
+          >
+            <!-- Draggable items -->
+            <div 
+              v-for="col in unassignedColumns" 
+              :key="col.id"
+              draggable="true"
+              @dragstart="onDragStart($event, col, 'unassigned', null, null)"
+              class="group relative p-3 bg-white border border-slate-200 rounded-lg cursor-grab active:cursor-grabbing hover:border-indigo-400 hover:shadow-md transition-all flex items-center shadow-sm"
+            >
+              <i class="fas fa-grip-vertical text-slate-300 mr-3 group-hover:text-indigo-400"></i>
+              <div class="flex-1">
+                <div class="font-semibold text-slate-700 text-sm truncate" :title="col.original">{{ col.alias || col.original }}</div>
+                <div class="text-xs text-slate-400 font-mono tracking-tight mt-0.5">{{ col.original !== col.alias ? '源: '+col.original : 'Type: Auto' }}</div>
+              </div>
+              <button @click.prevent="editAlias(col)" class="text-slate-300 hover:text-indigo-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="重命名别名">
+                <i class="fas fa-pencil-alt text-xs"></i>
+              </button>
+            </div>
+            
+            <div v-if="unassignedColumns.length === 0" class="h-full flex flex-col items-center justify-center text-slate-400 pt-20 pb-10">
+              <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                <i class="fas fa-check text-2xl text-emerald-400"></i>
+              </div>
+              <span class="text-sm font-medium">所有要素均已映射完毕</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Network Topology Builder -->
+        <div class="w-2/3 space-y-4">
+          
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+            <h2 class="font-bold text-slate-700"><i class="fas fa-project-diagram mr-2 text-indigo-500"></i> N 维贝叶斯拓扑构建器 (N-Level Builder)</h2>
+            <button @click="proceedToHealthCheck" class="px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/30 flex items-center">
+              <i class="fas fa-play mr-2"></i>执行数据体检与推演
+            </button>
+          </div>
+
+          <!-- Target Variable Area -->
+          <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
+            <div class="absolute right-0 top-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2"></div>
+            <h3 class="text-sm font-bold text-amber-900 mb-3 flex items-center">
+              <i class="fas fa-bullseye text-amber-500 mr-2"></i> 观测靶点 (Observational Target - Y)
+            </h3>
+            <div 
+              class="w-full min-h-[60px] border-2 border-dashed rounded-lg flex items-center justify-center p-2 transition-colors"
+              :class="targetVariable ? 'border-amber-300 bg-white/60' : 'border-amber-300/50 bg-amber-100/30 hover:bg-amber-100/50'"
+              @dragover.prevent
+              @drop="onDropTarget"
+            >
+              <div v-if="targetVariable" 
+                draggable="true"
+                @dragstart="onDragStart($event, targetVariable, 'target', null, null)"
+                class="w-full relative px-4 py-2.5 bg-white border border-amber-300 rounded-md shadow-sm flex items-center cursor-grab"
+              >
+                <i class="fas fa-star text-amber-400 mr-3"></i>
+                <span class="font-bold text-amber-900">{{ targetVariable.alias || targetVariable.original }}</span>
+                <span class="ml-auto text-xs text-amber-600/70 font-mono">{{ targetVariable.original }}</span>
+              </div>
+              <div v-else class="text-amber-700/60 text-sm font-medium">
+                拖拽一个要素到此处作为基准评估指标 Y
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Levels -->
+          <div class="space-y-4">
+            <div v-for="(level, index) in hierarchy" :key="level.id" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative group">
+              <div class="absolute -left-3 top-5 w-8 h-8 bg-indigo-600 rounded-full border-[3px] border-ice-white flex items-center justify-center text-xs text-white font-bold shadow-md z-10 transition-transform group-hover:scale-110">
+                L{{ index + 1 }}
+              </div>
+              
+              <div class="flex justify-between items-center mb-5 pl-4">
+                <div class="flex-1 items-center flex">
+                  <input v-model="level.level_name" class="text-lg font-bold text-slate-800 bg-transparent border-b border-transparent focus:border-indigo-400 hover:border-slate-300 focus:outline-none pb-0.5 w-1/2 transition-colors" placeholder="命名当前节点层级..."/>
+                  <i class="fas fa-pen text-xs text-slate-300 ml-2"></i>
+                </div>
+                <button v-if="hierarchy.length > 1" @click="removeLevel(index)" class="text-slate-400 hover:text-rose-500 px-2 py-1 transition-colors"><i class="fas fa-trash-alt"></i></button>
+              </div>
+
+              <div class="grid grid-cols-5 gap-4 pl-4 relative">
+                <!-- ID/Node Identifier -->
+                <div class="col-span-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide flex justify-between">
+                    <span>节点标识 (Node ID)</span>
+                  </div>
+                  <div 
+                    class="min-h-[44px] border-2 border-dashed border-slate-300 rounded-md flex flex-wrap gap-2 p-1 items-center justify-center"
+                    :class="{'bg-white': level.id_column}"
+                    @dragover.prevent
+                    @drop="onDropId($event, index)"
+                  >
+                    <div v-if="level.id_column" 
+                      draggable="true"
+                      @dragstart="onDragStart($event, level.id_column, 'id', index, null)"
+                      class="w-full px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded shadow-sm flex items-center cursor-grab text-sm font-semibold"
+                    >
+                      <i class="fas fa-sitemap text-blue-400 mr-2"></i>
+                      <span class="truncate">{{ level.id_column.alias || level.id_column.original }}</span>
+                    </div>
+                    <span v-else class="text-xs text-slate-400 w-full text-center">拖拽标识列...</span>
+                  </div>
+                </div>
+
+                <!-- Covariates -->
+                <div class="col-span-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">环境协变量 (Covariates X)</div>
+                  <div 
+                    class="min-h-[44px] border-2 border-dashed border-slate-300 rounded-md flex flex-wrap gap-2 p-2 items-start"
+                    :class="{'bg-white': level.covariates.length > 0}"
+                    @dragover.prevent
+                    @drop="onDropCovariate($event, index)"
+                  >
+                    <div v-for="(cov, covIndex) in level.covariates" :key="cov.id" 
+                      draggable="true"
+                      @dragstart="onDragStart($event, cov, 'covariate', index, covIndex)"
+                      class="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded shadow-sm flex items-center cursor-grab text-sm font-semibold whitespace-nowrap"
+                    >
+                      <i class="fas fa-chart-line text-emerald-500 mr-2"></i>
+                      {{ cov.alias || cov.original }}
+                    </div>
+                    
+                    <span v-if="level.covariates.length === 0" class="text-xs text-slate-400 w-full text-center py-1">拖拽影响该层级的客观变量至此...</span>
+                  </div>
+                </div>
+                
+                <!-- Connection Visuals -->
+                <div v-if="index < hierarchy.length - 1" class="absolute -bottom-8 left-8 w-px h-6 bg-indigo-300 z-0 border-l border-dashed border-indigo-400"></div>
+              </div>
+            </div>
+
+            <!-- Add Level Button -->
+            <button @click="addLevel" class="w-full py-3 border-2 border-dashed border-indigo-200 bg-indigo-50/50 rounded-xl text-indigo-500 hover:text-white hover:bg-indigo-500 hover:border-indigo-500 transition-all font-bold text-sm flex items-center justify-center group shadow-sm">
+              <i class="fas fa-plus mr-2 group-hover:scale-110 transition-transform"></i> 添加下一级网络节点 (Add Sub-Level)
+            </button>
+          </div>
+          
+        </div>
+      </div>
+      
+      <!-- Placeholder when no data -->
+      <div v-else class="h-[60vh] flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl bg-white/50 backdrop-blur-sm">
+        <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+          <i class="fas fa-cloud-upload-alt text-3xl text-indigo-500"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-700 mb-2">未检测到分析数据集</h2>
+        <p class="text-slate-500 max-w-md text-center mb-6">您可以点击右上角上传 CSV 业务宽表，或者从下拉菜单中加载系统内置的行业沙盒模板进行体验验证。</p>
+        <button @click="() => { selectedDemo = 'public_security'; loadDemo(); }" class="px-6 py-3 bg-deep-blue text-white rounded-lg shadow-md font-semibold hover:bg-slate-800 transition-colors">
+          <i class="fas fa-magic mr-2 text-neon-cyan"></i> 快速载入演示沙盒沙盘
+        </button>
+      </div>
+    </div>
+
+    <!-- Alias Editor Modal -->
+    <div v-if="editingCol" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50">
+      <div class="bg-white p-6 rounded-xl shadow-2xl w-96 transform transition-all">
+        <h3 class="font-bold text-lg text-slate-800 mb-1">自定义可视化归因标签</h3>
+        <p class="text-xs text-slate-500 mb-4">修改在最终折线图/散点图中呈现的名称，仅用作展示，绝不影响底层张量计算引擎。</p>
+        
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-slate-500 mb-1">原始数据表头列名</label>
+          <input type="text" :value="editingCol.original" disabled class="w-full bg-slate-100 border border-slate-200 rounded p-2 text-slate-600 font-mono text-sm" />
+        </div>
+        <div class="mb-6">
+          <label class="block text-xs font-bold text-indigo-600 mb-1">图表展示动态别名 (Alias)</label>
+          <input type="text" v-model="tempAlias" autofocus @keyup.enter="saveAlias" class="w-full bg-white border border-indigo-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded p-2 font-bold text-slate-800 outline-none" placeholder="输入更易于领导读懂的名称..." />
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button @click="editingCol = null" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded font-medium">取消设置</button>
+          <button @click="saveAlias" class="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded font-bold shadow-sm">保存别名</button>
         </div>
       </div>
     </div>
 
-    <div v-if="showHealthCheck" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 transition-opacity">
-      <div class="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DataHealthCheck 
-          :hierarchy="hierarchy" 
-          :targetVariable="targetVariable" 
-          :tableData="parsedTableData"
-          @close="showHealthCheck = false" 
-          @proceed="handleProceedToBackend"
-        />
+    <!-- Manual Input Modal -->
+    <div v-if="showManualInput" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50">
+      <div class="bg-white p-6 rounded-xl shadow-2xl w-[800px] max-w-full flex flex-col h-[70vh]">
+        <h3 class="font-bold text-lg text-slate-800 mb-1">手动录入宽表数据</h3>
+        <p class="text-xs text-slate-500 mb-4">您可以直接将 Excel 的数据粘贴到下方文本框中 (也支持 CSV 格式输入)。</p>
+        
+        <textarea v-model="manualCsvText" class="flex-1 w-full border border-slate-300 rounded p-3 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none mb-4" placeholder="变量A, 变量B, 变量C&#10;1.0, 2.5, 3&#10;1.2, 2.1, 4"></textarea>
+        
+        <div class="flex justify-end space-x-3 mt-auto">
+          <button @click="showManualInput = false" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded font-medium">取消</button>
+          <button @click="handleManualSubmit" class="px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded font-bold shadow-sm">解析并载入模型</button>
+        </div>
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import DataHealthCheck from './DataHealthCheck.vue'; // 确保路径正确引入了体检组件
 
-// --- 声明触发给父组件 (App.vue) 的事件 ---
-const emit = defineEmits(['start-inference']);
+const emit = defineEmits(['health-check']);
 
-// --- 响应式状态区 ---
-const columns = ref([]); 
+// Column and Data management
+const columns = ref([]);
 const unassignedColumns = ref([]);
-const parsedTableData = ref([]); 
+const parsedTableData = ref([]);
 
+// Topology Definition (Uses the original name mapped structures!)
+const targetVariable = ref(null);
 const hierarchy = ref([]);
-const targetVariable = ref(null); 
-const showHealthCheck = ref(false);
 
-// ==========================================
-// 核心逻辑 1：真实的纯前端 CSV 解析引擎
-// ==========================================
+// Demo selection
+const selectedDemo = ref('');
+
+// Manual Input state
+const showManualInput = ref(false);
+const manualCsvText = ref('');
+
+const handleManualSubmit = () => {
+    if(!manualCsvText.value.trim()){
+        alert("请输入数据");
+        return;
+    }
+    // Simple tab to comma converter if user pastes from excel
+    let cleanedText = manualCsvText.value.replace(/\t/g, ',');
+    parseCsvToState(cleanedText);
+    showManualInput.value = false;
+    selectedDemo.value = 'custom';
+};
+
+// Drag and drop state
+const draggedItem = ref(null);
+const dragSource = ref({ type: '', levelIndex: null, covIndex: null });
+
+// Alias Editor State
+const editingCol = ref(null);
+const tempAlias = ref('');
+
+// Generates an object wrapper for columns
+const createColObj = (name) => ({
+  id: name + '_' + Math.random().toString(36).substring(2, 9),
+  original: name,
+  alias: name
+});
+
+// Start validation and prepare for Inference request payload
+const proceedToHealthCheck = () => {
+  if (!targetVariable.value) return alert("必须至少设定一个观测靶点作为模型 Y 参数");
+  
+  // Format pure structure back to standard backend API
+  const cleanHierarchy = hierarchy.value.filter(l => l.id_column).map(l => ({
+     level_index: l.level_index,
+     level_name: l.level_name,
+     id_column: l.id_column.original,
+     covariates: l.covariates.map(c => c.original) // pass original to backend!
+  }));
+  
+  if (cleanHierarchy.length === 0) return alert("必须至少完成一层网络拓扑构建，且带有节点标识");
+
+  emit('health-check', { 
+    hierarchy: cleanHierarchy, 
+    target: { name: targetVariable.value.original, type: 'continuous' }, 
+    tableData: parsedTableData.value, // Raw data, let health check fix it
+    displayMapping: generateDisplayMapping() // Important for dashboard legend renames!
+  });
+};
+
+const generateDisplayMapping = () => {
+    let map = {};
+    if(targetVariable.value) map[targetVariable.value.original] = targetVariable.value.alias;
+    hierarchy.value.forEach(l => {
+        if(l.id_column) map[l.id_column.original] = l.id_column.alias;
+        l.covariates.forEach(c => map[c.original] = c.alias);
+    });
+    return map;
+};
+
+// CSV file processing
 const handleFileUpload = (event) => {
   const file = event.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = (e) => {
-    const text = e.target.result;
-    
-    // 基础的 CSV 按行切割解析
-    const lines = text.split('\n').filter(line => line.trim() !== '');
-    if (lines.length < 2) {
-      alert("CSV 数据格式错误或数据为空！");
-      return;
-    }
-
-    // 提取表头
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    columns.value = [...headers];
-    unassignedColumns.value = [...headers];
-
-    // 提取并重组数据体
-    const dataList = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-      let rowObj = {};
-      headers.forEach((header, index) => {
-        // 尝试转换为数字，若失败则保留字符串（后续由体检组件拦截报错）
-        const val = values[index];
-        rowObj[header] = isNaN(Number(val)) || val === '' ? val : Number(val);
-      });
-      dataList.push(rowObj);
-    }
-    
-    parsedTableData.value = dataList;
-    console.log("CSV 解析成功，共加载数据：", dataList.length, "行");
-    
-    // 触发智能嗅探
-    autoMapFields();
+    parseCsvToState(e.target.result);
+    selectedDemo.value = '';
   };
+  reader.readAsText(file);
+};
+
+// Global parsing logic
+const parseCsvToState = (csvText) => {
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) return alert("源表格必须包含有效的数据。");
   
-  reader.readAsText(file); // 执行读取
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const dataList = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    if(!lines[i].trim()) continue;
+    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+    let rowObj = {};
+    headers.forEach((header, index) => {
+      const val = values[index];
+      rowObj[header] = isNaN(Number(val)) || val === '' ? val : Number(val);
+    });
+    dataList.push(rowObj);
+  }
+
+  columns.value = headers.map(h => createColObj(h));
+  unassignedColumns.value = [...columns.value];
+  parsedTableData.value = dataList;
+  targetVariable.value = null;
+  hierarchy.value = [{ id: 'L1', level_index: 0, level_name: '网格管理层 L1', id_column: null, covariates: [] }];
 };
 
-// ==========================================
-// 核心逻辑 2：启发式盲猜引擎 (Heuristic Mapping)
-// ==========================================
-const autoMapFields = () => {
-  // 初始化经典三层架构模板
-  hierarchy.value = [
-    { level_index: 0, level_name: '战略层 (省厅/市局)', id_column: null, covariates: [] },
-    { level_index: 1, level_name: '战役层 (支队/分局)', id_column: null, covariates: [] },
-    { level_index: 2, level_name: '战术层 (单兵/派出所)', id_column: null, covariates: [] }
-  ];
-
-  const remaining = [];
-
-  columns.value.forEach(col => {
-    const colName = col.toLowerCase();
-    let assigned = false;
-
-    // 1. 嗅探靶点 (Y)
-    if (colName.includes('转化率') || colName.includes('成功率') || colName.includes('指标')) {
-      targetVariable.value = { name: col, type: 'continuous' };
-      assigned = true;
-    }
-    // 2. 嗅探层级标识 (ID)
-    else if (colName.includes('id') || colName.includes('市局') || colName.includes('省')) {
-      if (!hierarchy.value[0].id_column) { hierarchy.value[0].id_column = col; assigned = true; }
-    }
-    else if (colName.includes('分局') || colName.includes('大队')) {
-      if (!hierarchy.value[1].id_column) { hierarchy.value[1].id_column = col; assigned = true; }
-    }
-    else if (colName.includes('派出所') || colName.includes('名称') || colName.includes('节点')) {
-      if (!hierarchy.value[2].id_column) { hierarchy.value[2].id_column = col; assigned = true; }
-    }
-    // 3. 嗅探特征 (X)
-    else if (colName.includes('资金') || colName.includes('预算')) {
-      hierarchy.value[0].covariates.push(col); assigned = true;
-    }
-    else if (colName.includes('比例') || colName.includes('在线率')) {
-      hierarchy.value[1].covariates.push(col); assigned = true;
-    }
-    else if (colName.includes('考核') || colName.includes('负荷') || colName.includes('得分')) {
-      hierarchy.value[2].covariates.push(col); assigned = true;
-    }
-
-    if (!assigned) remaining.push(col);
-  });
-
-  unassignedColumns.value = remaining;
+// Alias Rename actions
+const editAlias = (col) => {
+  editingCol.value = col;
+  tempAlias.value = col.alias !== col.original ? col.alias : '';
+};
+const saveAlias = () => {
+  if (editingCol.value) {
+    editingCol.value.alias = tempAlias.value.trim() || editingCol.value.original;
+    editingCol.value = null;
+  }
 };
 
-// ==========================================
-// 辅助操作逻辑
-// ==========================================
+// Hierarchy actions
 const addLevel = () => {
-  hierarchy.value.push({ 
-    level_index: hierarchy.value.length, 
-    level_name: `新增层级 L${hierarchy.value.length + 1}`, 
-    id_column: null, 
-    covariates: [] 
+  hierarchy.value.push({
+    id: 'L' + (hierarchy.value.length + 1) + '_' + Date.now(),
+    level_index: hierarchy.value.length,
+    level_name: `网格拓展层 L${hierarchy.value.length + 1}`,
+    id_column: null,
+    covariates: []
   });
 };
-
 const removeLevel = (index) => {
-  // 生产环境中这里应补充逻辑：将该层的字段退回 unassignedColumns
+  const level = hierarchy.value[index];
+  if (level.id_column) unassignedColumns.value.push(level.id_column);
+  if (level.covariates.length > 0) unassignedColumns.value.push(...level.covariates);
   hierarchy.value.splice(index, 1);
+  hierarchy.value.forEach((l, i) => l.level_index = i); // Repack array
 };
 
-// ==========================================
-// 核心逻辑 3：接收体检结果，打包并触发后端请求
-// ==========================================
-const handleProceedToBackend = (healthCheckPayload) => {
-  showHealthCheck.value = false; // 关闭体检弹窗
-  
-  // 组装最终向 FastAPI 发送的完美 JSON 格式 (对齐 OpenAPI 协议)
-  const finalSchema = {
-    target: targetVariable.value,
-    hierarchy: hierarchy.value,
-    tableData: parsedTableData.value // 经过体检组件清洗（如均值填充）后的数据
-  };
+// HTML5 API Drag Hooks
+const onDragStart = (e, item, sourceType, levelIndex, covIndex) => {
+  draggedItem.value = item;
+  dragSource.value = { type: sourceType, levelIndex, covIndex };
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('opacity-50');
+};
 
-  console.log("前端清洗与校验完毕！数据包已抛出给总控台：", finalSchema);
+const removeDraggedFromSource = () => {
+  const src = dragSource.value;
+  if(src.type === 'unassigned') {
+    unassignedColumns.value = unassignedColumns.value.filter(c => c.id !== draggedItem.value.id);
+  } else if (src.type === 'target') {
+    targetVariable.value = null;
+  } else if (src.type === 'id') {
+    hierarchy.value[src.levelIndex].id_column = null;
+  } else if (src.type === 'covariate') {
+    hierarchy.value[src.levelIndex].covariates.splice(src.covIndex, 1);
+  }
+};
+
+// HTML5 Drop Containers Logic
+const onDropUnassigned = () => {
+  if(!draggedItem.value) return;
+  if(dragSource.value.type !== 'unassigned') {
+    removeDraggedFromSource();
+    unassignedColumns.value.push(draggedItem.value);
+  }
+  teardownDrag();
+};
+
+const onDropTarget = () => {
+  if(!draggedItem.value) return;
+  if (dragSource.value.type === 'target') return teardownDrag();
   
-  // 【关键修复】不在当前组件发请求，而是将干净的数据弹射给 App.vue 的 startInference 方法
-  emit('start-inference', finalSchema);
+  if (targetVariable.value) {
+    unassignedColumns.value.push(targetVariable.value);
+  }
+  
+  removeDraggedFromSource();
+  targetVariable.value = draggedItem.value;
+  teardownDrag();
+};
+
+const onDropId = (e, levelIndex) => {
+  if(!draggedItem.value) return;
+  if (dragSource.value.type === 'id' && dragSource.value.levelIndex === levelIndex) return teardownDrag();
+  
+  const level = hierarchy.value[levelIndex];
+  if (level.id_column) {
+    unassignedColumns.value.push(level.id_column);
+  }
+  
+  removeDraggedFromSource();
+  level.id_column = draggedItem.value;
+  teardownDrag();
+};
+
+const onDropCovariate = (e, levelIndex) => {
+  if(!draggedItem.value) return;
+  const level = hierarchy.value[levelIndex];
+  
+  if (level.covariates.find(c => c.id === draggedItem.value.id)) {
+      return teardownDrag();
+  }
+  
+  removeDraggedFromSource();
+  level.covariates.push(draggedItem.value);
+  teardownDrag();
+};
+
+const teardownDrag = () => {
+  draggedItem.value = null;
+  document.querySelectorAll('.opacity-50').forEach(el => el.classList.remove('opacity-50'));
+};
+
+
+// 模版库自动化装载函数
+const loadDemo = () => {
+  if (selectedDemo.value === 'public_security') injectPublicSecurityDemo();
+  else if (selectedDemo.value === 'health') injectHealthDemo();
+  else if (selectedDemo.value === 'retail') injectRetailDemo();
+};
+
+const injectPublicSecurityDemo = () => {
+    const csvData = `
+省厅区划,市局单位,分局名称,专班经费投入,警力巡防密度,监控覆盖率,经度坐标,纬度坐标,综合打防转化率
+广东省,广州市,天河分局,450,0.85,0.92,113.264,23.129,0.88
+广东省,广州市,越秀分局,520,0.91,0.98,113.266,23.129,0.94
+广东省,深圳市,南山分局,310,0.76,0.85,113.930,22.533,0.79
+广东省,深圳市,福田分局,390,0.82,0.90,114.055,22.533,0.83
+广东省,佛山市,南海分局,280,0.71,0.88,113.122,23.021,0.81
+广东省,湛江市,霞山分局,190,0.61,0.72,110.358,21.276,0.65
+广东省,珠海市,香洲分局,260,0.75,0.83,113.576,22.270,0.77`;
+    parseCsvToState(csvData);
+    
+    // Auto map the structure for demo purposes
+    setTimeout(() => {
+        const findCol = (name) => unassignedColumns.value.find(c => c.original === name);
+        const mapOne = (colObj, type, lIdx) => {
+           if(!colObj) return;
+           unassignedColumns.value = unassignedColumns.value.filter(c => c.id !== colObj.id);
+           if(type === 'target') targetVariable.value = colObj;
+           else if (type === 'id') hierarchy.value[lIdx].id_column = colObj;
+           else if (type === 'cov') hierarchy.value[lIdx].covariates.push(colObj);
+        };
+        
+        mapOne(findCol('综合打防转化率'), 'target', null);
+        
+        hierarchy.value = [
+          { id: 'l1', level_index: 0, level_name: '省级调度池', id_column: null, covariates: []},
+          { id: 'l2', level_index: 1, level_name: '市局作战圈', id_column: null, covariates: []},
+          { id: 'l3', level_index: 2, level_name: '基层分局（落实方）', id_column: null, covariates: []}
+        ];
+        
+        mapOne(findCol('省厅区划'), 'id', 0);
+        mapOne(findCol('市局单位'), 'id', 1);
+        mapOne(findCol('分局名称'), 'id', 2);
+        
+        mapOne(findCol('专班经费投入'), 'cov', 1);
+        mapOne(findCol('警力巡防密度'), 'cov', 2);
+        mapOne(findCol('监控覆盖率'), 'cov', 2);
+        targetVariable.value.alias = "作战效率期望 (Y)";
+    }, 100);
+};
+
+const injectHealthDemo = () => {
+    const csvData = `
+大洲,国家,重症ICU代号,危重医学拨款,医床周转率,院感防控值,病死率
+北美洲,美国,US-H1,1500,0.3,0.85,0.012
+北美洲,美国,US-H2,1200,0.25,0.91,0.015
+北美洲,加拿大,CA-H1,900,0.4,0.70,0.009
+欧洲区,英国,UK-H1,1100,0.35,0.88,0.011
+欧洲区,德国,DE-H1,1300,0.45,0.65,0.007`;
+    parseCsvToState(csvData);
+};
+
+const injectRetailDemo = () => {
+    const csvData = `
+全球大区,国家市场,城市群,品牌公关预算,竞品下沉率,当地人均GDP,当季净利润增长率
+APAC,中国,长三角,500,0.8,2.1,1.12
+APAC,中国,珠三角,450,0.9,1.9,1.05
+APAC,日本,关东圈,300,0.95,3.5,0.98
+EMEA,英国,大伦敦,400,0.7,3.8,1.01
+AMER,美国,加利福尼亚,800,0.85,4.5,1.25`;
+    parseCsvToState(csvData);
 };
 </script>
