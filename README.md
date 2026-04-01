@@ -61,7 +61,13 @@ npm run tauri dev
 
 ## Project Structure
 
-- `src/`: Frontend Vue.js source code.
-- `src-tauri/`: Tauri backend source code (Rust).
-- `backend/`: FastAPI backend source code (Python).
-- `软件需求说明文档.md`: Software requirement specification.
+- `src/`: Frontend Vue.js source code (incl. DataImporter & VisualizationDashboard).
+- `src-tauri/`: Tauri backend source code (Rust), providing desktop app envelope.
+- `backend/`: FastAPI backend source code (Python). Connects to PyMC for MCMC sampling.
+- `软件需求说明文档.md`: Software requirement specification (detailed usage guides and module outlines).
+
+## Key Features
+- **Hierarchical Network Builder**: Drag-and-drop mechanism to visually map covariates and ID columns to dynamic DAG levels.
+- **Fast / Accurate Sampling**: Built-in toggle to switch between 500/300 (fast preview) and 1500/1000 (accurate precision) NUTS sampling modes. Customizable parameter injection available.
+- **GIS Map View**: Built-in scatter and rippling effect maps for geographical analytics (Lat/Lng support).
+- **Domain Scenarios**: Comes with 4 domain-specific sandbox presets, including a complex 4-tier geopolitical conflict map.

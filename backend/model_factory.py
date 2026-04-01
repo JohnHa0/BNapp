@@ -31,9 +31,16 @@ def build_dynamic_pymc_model(Y_obs, parsed_levels):
         
     return model
 
-def run_mcmc_sampling(model):
+def run_mcmc_sampling(model, sampling_mode="fast", custom_draws=None, custom_tune=None):
     with model:
-        # 使用 PyTensor C/Numba 后端 (由于最新jax/numpyro移除了 linear_util 接口)
-        trace = pm.sample(draws=1500, tune=1000, target_accept=0.9, return_inferencedata=True)
+        # 优先使用用户自定义参数，否则根据模式选择预设
+        if custom_draws and custom_tune:
+            draws, tune = custom_draws, custom_tune
+        elif sampling_mode == "fast":
+            draws, tune = 500, 300
+        else:
+            draws, tune = 1500, 1000
+            
+        trace = pm.sample(draws=draws, tune=tune, target_accept=0.9, return_inferencedata=True)
         pm.sample_posterior_predictive(trace, extend_inferencedata=True)
     return trace

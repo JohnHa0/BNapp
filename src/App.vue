@@ -9,7 +9,13 @@
           <p class="text-xs text-indigo-300 -mt-1 tracking-wider uppercase">Hierarchical Bayesian Inference Engine</p>
         </div>
       </div>
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-3">
+        <button @click="showHelpGuide = true" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-indigo-200 hover:text-white transition-colors" title="帮助与使用手册">
+          <i class="fas fa-question"></i>
+        </button>
+        <span v-if="currentSamplingMode === 'fast'" class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/50 text-xs font-semibold text-amber-400 flex items-center shadow-inner">
+          <i class="fas fa-bolt mr-1.5"></i> 快速预览
+        </span>
         <span class="px-2.5 py-1 rounded bg-indigo-900/60 border border-indigo-700/50 text-xs font-semibold text-neon-cyan flex items-center shadow-inner">
           <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> V2.0 Pro
         </span>
@@ -85,9 +91,74 @@
             :targetVariable="currentTarget" 
             :tableData="rawTableData"
             :displayMapping="currentDisplayMapping"
+            :samplingMode="currentSamplingMode"
+            :customDraws="currentCustomDraws"
+            :customTune="currentCustomTune"
             @close="showHealthCheckModal = false" 
             @proceed="startInference"
           />
+        </div>
+      </div>
+    </transition>
+
+    <!-- 帮助与使用手册弹窗 -->
+    <transition name="fade">
+      <div v-if="showHelpGuide" class="fixed inset-0 bg-deep-blue/50 backdrop-blur-md flex justify-center items-center z-50" @click.self="showHelpGuide = false">
+        <div class="w-full max-w-3xl max-h-[85vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white flex justify-between items-center shrink-0">
+            <h2 class="text-lg font-bold flex items-center"><i class="fas fa-book-open mr-3"></i>DeepBayes 使用指南与帮助手册</h2>
+            <button @click="showHelpGuide = false" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-slate-700 leading-relaxed">
+            
+            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+              <h3 class="font-bold text-indigo-800 mb-2 flex items-center"><i class="fas fa-rocket mr-2 text-indigo-600"></i>快速入门</h3>
+              <p>DeepBayes 是一款基于<strong>层次贝叶斯模型 (Hierarchical Bayesian Model)</strong> 的多层级效能评估与归因分析平台。您只需导入数据、拖拽构建拓扑、点击推演，即可获得专业的统计推断结果。</p>
+            </div>
+            
+            <div>
+              <h3 class="font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-database mr-2 text-blue-500"></i>数据准备要求</h3>
+              <ul class="space-y-2 text-slate-600">
+                <li class="flex items-start"><span class="text-emerald-500 mr-2 mt-0.5"><i class="fas fa-check-circle"></i></span><strong>格式</strong>: CSV 宽表，首行必须为列名（表头）</li>
+                <li class="flex items-start"><span class="text-emerald-500 mr-2 mt-0.5"><i class="fas fa-check-circle"></i></span><strong>必含列</strong>: 至少 1 列“标识列” (ID，如地点名) + 1 列“数值目标列” (Y，如效率指数)</li>
+                <li class="flex items-start"><span class="text-emerald-500 mr-2 mt-0.5"><i class="fas fa-check-circle"></i></span><strong>可选列</strong>: 协变量 (X，影响因素，如经费、密度等，必须为数值)</li>
+                <li class="flex items-start"><span class="text-blue-500 mr-2 mt-0.5"><i class="fas fa-map-marker-alt"></i></span><strong>地图功能</strong>: 若想启用地理布控图，请包含“经度坐标”和“纬度坐标”两列</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 class="font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-project-diagram mr-2 text-indigo-500"></i>核心概念说明</h3>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  <div class="font-bold text-amber-800 text-xs mb-1"><i class="fas fa-bullseye mr-1"></i>观测靶点 (Y)</div>
+                  <p class="text-[11px] text-amber-700">您想要评估的最终指标，例如“综合效率”、“稳定指数”。必须是连续数值。</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <div class="font-bold text-blue-800 text-xs mb-1"><i class="fas fa-sitemap mr-1"></i>节点标识 (ID)</div>
+                  <p class="text-[11px] text-blue-700">层级的分组变量，如“省份”、“分局名称”。可以是文本或数字。</p>
+                </div>
+                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                  <div class="font-bold text-emerald-800 text-xs mb-1"><i class="fas fa-chart-line mr-1"></i>协变量 (X)</div>
+                  <p class="text-[11px] text-emerald-700">影响结果的因素，如“经费投入”、“兵力密度”。必须是数值。</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-chart-bar mr-2 text-emerald-500"></i>图表解读指南</h3>
+              <div class="space-y-2 text-slate-600">
+                <p><strong>▶ DAG 拓扑图</strong>: 展示您构建的贝叶斯网络结构，可以观察节点之间的因果关系。</p>
+                <p><strong>▶ 偏差散点图</strong>: 横轴=模型预期值，纵轴=偏差。亮点(超出预期)和暗点(低于预期)被标色区分。</p>
+                <p><strong>▶ PPC 后验检验</strong>: 将真实数据分布和模型预测分布拟合，曲线越接近说明模型拟合度越高。</p>
+                <p><strong>▶ 森林图与 What-If</strong>: 森林图展示每个协变量的影响力系数及95%可信区间。拖动滑块可实时观察参数变化对结果的影响。</p>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <h3 class="font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-cog mr-2 text-slate-500"></i>采样引擎说明</h3>
+              <p>本软件使用 PyMC 的 NUTS (No-U-Turn Sampler) 马尔可夫链蒙特卡洛采样器。<strong>快速模式</strong>保护了运算效率 (~5秒)，适合快速验证模型构建是否合理。<strong>精确模式</strong>大幅提高采样量 (~20秒)，能得到更可信的统计结果。您也可以通过“高级参数”自行设置 Draws 和 Tune 数值。</p>
+            </div>
+          </div>
         </div>
       </div>
     </transition>
@@ -108,6 +179,10 @@ const currentHierarchy = ref([]);
 const currentTarget = ref(null);
 const inferenceResults = ref(null);
 const currentDisplayMapping = ref({});
+const currentSamplingMode = ref('fast');
+const currentCustomDraws = ref(500);
+const currentCustomTune = ref(300);
+const showHelpGuide = ref(false);
 
 const loadingProgress = ref(0);
 const loadingTips = ref([]);
@@ -118,6 +193,9 @@ const openHealthCheck = (payload) => {
   currentHierarchy.value = payload.hierarchy;
   currentTarget.value = payload.target;
   currentDisplayMapping.value = payload.displayMapping || {};
+  currentSamplingMode.value = payload.samplingMode || 'fast';
+  currentCustomDraws.value = payload.customDraws || 500;
+  currentCustomTune.value = payload.customTune || 300;
   showHealthCheckModal.value = true;
 };
 
@@ -132,8 +210,9 @@ const startInference = async (cleanSchema) => {
   ];
 
   const startTime = Date.now();
+  const speedMultiplier = cleanSchema.samplingMode === 'fast' ? 3 : 1;
   progressInterval = setInterval(() => {
-    if(loadingProgress.value < 88) loadingProgress.value += Math.random() * 4;
+    if(loadingProgress.value < 88) loadingProgress.value += Math.random() * 4 * speedMultiplier;
     
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
     if(loadingProgress.value > 30 && loadingTips.value.length === 2) {
@@ -156,7 +235,10 @@ const startInference = async (cleanSchema) => {
         project_name: '通用效能评估 (DeepBayes)',
         target_variable: cleanSchema.target,
         hierarchy: cleanSchema.hierarchy,
-        raw_data: cleanSchema.tableData
+        raw_data: cleanSchema.tableData,
+        sampling_mode: cleanSchema.samplingMode,
+        custom_draws: cleanSchema.customDraws,
+        custom_tune: cleanSchema.customTune
       })
     });
     

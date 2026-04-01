@@ -39,6 +39,9 @@ class InferenceRequest(BaseModel):
     target_variable: TargetVariable
     hierarchy: List[SchemaLevel]
     raw_data: List[Dict[str, Any]]
+    sampling_mode: Optional[str] = "fast"
+    custom_draws: Optional[int] = None
+    custom_tune: Optional[int] = None
 
 import traceback
 
@@ -90,7 +93,7 @@ async def run_inference(req: InferenceRequest):
             }
             
         model = build_dynamic_pymc_model(Y_obs, parsed_levels)
-        trace = run_mcmc_sampling(model)
+        trace = run_mcmc_sampling(model, req.sampling_mode, req.custom_draws, req.custom_tune)
         performance_data, summary_df, ppc_data, betas = extract_insights(trace, Y_obs, node_names)
         
         return {

@@ -84,7 +84,10 @@ const props = defineProps({
   hierarchy: Array,       // [{ level_index, level_name, id_column, covariates: [...] }] All using original keys
   targetVariable: Object, // { name: '...', type: 'continuous' }
   tableData: Array,       // raw dataset rows
-  displayMapping: Object  // { 'original': 'alias' }
+  displayMapping: Object, // { 'original': 'alias' }
+  samplingMode: String,   // 'fast' or 'accurate'
+  customDraws: Number,
+  customTune: Number
 });
 
 const emit = defineEmits(['close', 'proceed']);
@@ -209,8 +212,11 @@ const generateSchemaAndProceed = () => {
     status: 'success',
     hierarchy: localHierarchy,
     target: props.targetVariable,
-    tableData: localTableData,    // The cleaned and imputed data!
-    displayMapping: props.displayMapping
+    tableData: localTableData,
+    displayMapping: props.displayMapping,
+    samplingMode: props.samplingMode,
+    customDraws: props.customDraws,
+    customTune: props.customTune
   });
 };
 

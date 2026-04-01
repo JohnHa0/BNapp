@@ -11,12 +11,15 @@
           <select v-model="selectedDemo" @change="loadDemo" class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-medium outline-none cursor-pointer">
             <option value="">🔮 加载通用行业沙盘模板...</option>
             <option value="public_security">【社会治理】省市三级公安防效能评估</option>
+            <option value="geopolitics">【地缘政治】全球同盟冲突演化博弈沙盘 (带地图坐标)</option>
             <option value="health">【公共卫生】跨国-区域重症致死率归因</option>
             <option value="retail">【商业零售】跨国总部-区域市场销量推演</option>
           </select>
-          <span class="text-slate-300">|</span>
           <button @click="showManualInput = true" class="px-5 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-all flex items-center">
             <i class="fas fa-edit mr-2"></i>手动录入数据
+          </button>
+          <button @click="downloadSampleCSV" class="px-5 py-2.5 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all flex items-center" title="下载标准宽表范例格式">
+            <i class="fas fa-download mr-2"></i>下载范例模板
           </button>
           <label class="px-5 py-2.5 text-sm font-semibold text-white bg-deep-blue hover:bg-slate-800 rounded-lg cursor-pointer transition-all shadow shadow-deep-blue/30 flex items-center">
             <i class="fas fa-file-csv mr-2 text-neon-cyan"></i>上传表格 (CSV)
@@ -70,11 +73,55 @@
         <!-- Right: Network Topology Builder -->
         <div class="w-2/3 space-y-4">
           
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-            <h2 class="font-bold text-slate-700"><i class="fas fa-project-diagram mr-2 text-indigo-500"></i> N 维贝叶斯拓扑构建器 (N-Level Builder)</h2>
-            <button @click="proceedToHealthCheck" class="px-5 py-2 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/30 flex items-center">
-              <i class="fas fa-play mr-2"></i>执行数据体检与推演
-            </button>
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center group relative">
+            <div>
+              <h2 class="font-bold text-slate-700"><i class="fas fa-project-diagram mr-2 text-indigo-500"></i> N 维贝叶斯拓扑构建器 (N-Level Builder)</h2>
+              <p class="text-[11px] text-slate-400 mt-1">新手必读：至少需要一层网络。Y=最终结果；ID=地点/人；X=影响因素。</p>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+               <div class="relative group/tip">
+                 <div class="flex items-center text-xs text-slate-500 bg-slate-50 p-1.5 rounded-lg border border-slate-200 cursor-default">
+                    <span :class="{'font-bold text-indigo-600': samplingMode === 'accurate', 'text-slate-400 cursor-pointer hover:text-slate-600': samplingMode === 'fast'}" @click="samplingMode = 'accurate'; customDraws = 1500; customTune = 1000;">精确模式</span>
+                    <div class="w-9 h-[18px] bg-slate-200 mx-2 rounded-full relative cursor-pointer" @click="toggleSamplingMode">
+                       <div class="absolute top-[3px] w-3 h-3 rounded-full transition-all shadow" :class="samplingMode === 'fast' ? 'bg-amber-500 right-[3px]' : 'bg-indigo-600 left-[3px]'"></div>
+                    </div>
+                    <span :class="{'font-bold text-amber-600': samplingMode === 'fast', 'text-slate-400 cursor-pointer hover:text-slate-600': samplingMode === 'accurate'}" @click="samplingMode = 'fast'; customDraws = 500; customTune = 300;">快速预览 <i class="fas fa-bolt ml-0.5"></i></span>
+                 </div>
+                 <!-- Tooltip -->
+                 <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-slate-800 text-white text-[11px] p-3 rounded-lg shadow-xl opacity-0 group-hover/tip:opacity-100 transition-opacity pointer-events-none z-50">
+                    <div class="font-bold mb-1"><i class="fas fa-info-circle mr-1 text-neon-cyan"></i> 采样模式说明</div>
+                    <p><strong class="text-amber-400">快速预览</strong>: Draws=500, Tune=300。适合快速验证模型结构是否合理 (~5秒)。</p>
+                    <p class="mt-1"><strong class="text-indigo-300">精确模式</strong>: Draws=1500, Tune=1000。生成学术级可信后验分布 (~20秒)。</p>
+                    <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                 </div>
+               </div>
+
+               <!-- 高级参数展开 -->
+               <button @click="showAdvancedSampling = !showAdvancedSampling" class="text-xs text-slate-400 hover:text-indigo-600 transition-colors" :title="showAdvancedSampling ? '收起高级参数' : '展开自定义采样参数'">
+                 <i :class="showAdvancedSampling ? 'fas fa-chevron-up' : 'fas fa-cog'"></i>
+               </button>
+               
+               <button @click="proceedToHealthCheck" class="px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/30 flex items-center group-hover:shadow-lg">
+                 <i class="fas fa-play mr-2"></i>执行数据体检与推演
+               </button>
+            </div>
+          </div>
+
+          <!-- 高级采样参数面板 -->
+          <div v-if="showAdvancedSampling" class="bg-indigo-50/60 p-4 rounded-xl border border-indigo-200 shadow-sm">
+            <h4 class="text-xs font-bold text-indigo-700 mb-3 flex items-center"><i class="fas fa-sliders-h mr-2"></i>高级 MCMC 采样参数 (仅限专业用户)</h4>
+            <div class="flex gap-4 items-end">
+              <div class="flex-1">
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Draws (后验抽样次数)</label>
+                <input type="number" v-model.number="customDraws" min="100" max="10000" step="100" class="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:outline-none" />
+              </div>
+              <div class="flex-1">
+                <label class="block text-[11px] font-bold text-slate-500 mb-1">Tune (预热调优次数)</label>
+                <input type="number" v-model.number="customTune" min="100" max="5000" step="100" class="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 text-sm font-mono text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:outline-none" />
+              </div>
+              <div class="text-[10px] text-slate-400 pb-2 flex-shrink-0">总迭代: {{ (customDraws + customTune) * 4 }} 次</div>
+            </div>
           </div>
 
           <!-- Target Variable Area -->
@@ -218,9 +265,9 @@
     <div v-if="showManualInput" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50">
       <div class="bg-white p-6 rounded-xl shadow-2xl w-[800px] max-w-full flex flex-col h-[70vh]">
         <h3 class="font-bold text-lg text-slate-800 mb-1">手动录入宽表数据</h3>
-        <p class="text-xs text-slate-500 mb-4">您可以直接将 Excel 的数据粘贴到下方文本框中 (也支持 CSV 格式输入)。</p>
+        <p class="text-xs text-slate-500 mb-4">您可以直接将 Excel 的数据粘贴到下方文本框中 (也支持 CSV 格式输入)。<strong class="text-indigo-500">新手注：数据首行必须是列名，且必须包含数值类数据。若想体验地图大屏，请命名经度列为'经度坐标'、纬度列为'纬度坐标'。</strong></p>
         
-        <textarea v-model="manualCsvText" class="flex-1 w-full border border-slate-300 rounded p-3 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none mb-4" placeholder="变量A, 变量B, 变量C&#10;1.0, 2.5, 3&#10;1.2, 2.1, 4"></textarea>
+        <textarea v-model="manualCsvText" class="flex-1 w-full border border-slate-300 rounded p-3 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none mb-4" placeholder="大洲,大区名称,经度坐标,纬度坐标,资金投入X,目标达成情况Y&#10;亚洲,远东,116.4,39.9,150.5,0.88&#10;美洲,北美,-74.0,40.7,210.0,0.92"></textarea>
         
         <div class="flex justify-end space-x-3 mt-auto">
           <button @click="showManualInput = false" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded font-medium">取消</button>
@@ -247,6 +294,24 @@ const hierarchy = ref([]);
 
 // Demo selection
 const selectedDemo = ref('');
+
+// Sampling mode ('accurate' or 'fast') - 默认快速模式
+const samplingMode = ref('fast');
+const showAdvancedSampling = ref(false);
+const customDraws = ref(500);
+const customTune = ref(300);
+
+const toggleSamplingMode = () => {
+    if (samplingMode.value === 'fast') {
+        samplingMode.value = 'accurate';
+        customDraws.value = 1500;
+        customTune.value = 1000;
+    } else {
+        samplingMode.value = 'fast';
+        customDraws.value = 500;
+        customTune.value = 300;
+    }
+};
 
 // Manual Input state
 const showManualInput = ref(false);
@@ -296,8 +361,11 @@ const proceedToHealthCheck = () => {
   emit('health-check', { 
     hierarchy: cleanHierarchy, 
     target: { name: targetVariable.value.original, type: 'continuous' }, 
-    tableData: parsedTableData.value, // Raw data, let health check fix it
-    displayMapping: generateDisplayMapping() // Important for dashboard legend renames!
+    tableData: parsedTableData.value,
+    displayMapping: generateDisplayMapping(),
+    samplingMode: samplingMode.value,
+    customDraws: customDraws.value,
+    customTune: customTune.value
   });
 };
 
@@ -347,6 +415,19 @@ const parseCsvToState = (csvText) => {
   parsedTableData.value = dataList;
   targetVariable.value = null;
   hierarchy.value = [{ id: 'L1', level_index: 0, level_name: '网格管理层 L1', id_column: null, covariates: [] }];
+};
+
+// Tool: Download sample CSV
+const downloadSampleCSV = () => {
+    const csvContent = "省厅,分局,经度坐标,纬度坐标,警力投入X1,监控密度X2,打防转化率Y\n广东,天河,113.264,23.129,450,0.92,0.88\n广东,越秀,113.266,23.129,520,0.98,0.94\n广东,南山,113.930,22.533,310,0.85,0.79";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "DeepBayes_Template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 // Alias Rename actions
@@ -462,6 +543,7 @@ const loadDemo = () => {
   if (selectedDemo.value === 'public_security') injectPublicSecurityDemo();
   else if (selectedDemo.value === 'health') injectHealthDemo();
   else if (selectedDemo.value === 'retail') injectRetailDemo();
+  else if (selectedDemo.value === 'geopolitics') injectGeopoliticsDemo();
 };
 
 const injectPublicSecurityDemo = () => {
@@ -502,7 +584,52 @@ const injectPublicSecurityDemo = () => {
         mapOne(findCol('专班经费投入'), 'cov', 1);
         mapOne(findCol('警力巡防密度'), 'cov', 2);
         mapOne(findCol('监控覆盖率'), 'cov', 2);
-        targetVariable.value.alias = "作战效率期望 (Y)";
+        if(targetVariable.value) targetVariable.value.alias = "作战效率期望 (Y)";
+    }, 100);
+};
+
+const injectGeopoliticsDemo = () => {
+    const csvData = `
+势力阵营,战略大区,主权国家,热点城市,经度坐标,纬度坐标,经济制裁深度,军事兵力投送量,武器军援指数,网络战攻击强度,区域维稳指数Y
+北约集群NATO,东欧战略区,乌克兰,基辅Kyiv,30.523,50.450,0.95,0.80,0.92,0.75,0.30
+北约集群NATO,东欧战略区,波兰,华沙Warsaw,21.012,52.229,0.15,0.55,0.40,0.20,0.88
+北约集群NATO,高加索观察区,格鲁吉亚,第比利斯Tbilisi,44.827,41.715,0.10,0.30,0.20,0.10,0.85
+金砖抗压链BRICS,远东及亚太,俄罗斯,符拉迪沃斯托克VVO,131.886,43.119,0.50,0.85,0.70,0.55,0.75
+金砖抗压链BRICS,中东新轴心,叙利亚,大马士革Damascus,36.291,33.513,0.88,0.72,0.89,0.60,0.25
+金砖抗压链BRICS,中东新轴心,也门,萨那Sanaa,44.206,15.369,0.70,0.45,0.95,0.30,0.18
+中间游离带,南亚次大陆,印度,新德里NewDelhi,77.209,28.613,0.05,0.60,0.40,0.35,0.90
+中间游离带,非洲之角,索马里,摩加迪沙Mogadishu,45.343,2.046,0.20,0.15,0.80,0.12,0.15
+中间游离带,东南亚通道,缅甸,内比都Naypyidaw,96.131,19.763,0.30,0.25,0.55,0.18,0.40`;
+    parseCsvToState(csvData);
+    
+    // 自动映射4层拓扑结构
+    setTimeout(() => {
+        const findCol = (name) => unassignedColumns.value.find(c => c.original === name);
+        const mapOne = (colObj, type, lIdx) => {
+           if(!colObj) return;
+           unassignedColumns.value = unassignedColumns.value.filter(c => c.id !== colObj.id);
+           if(type === 'target') targetVariable.value = colObj;
+           else if (type === 'id') hierarchy.value[lIdx].id_column = colObj;
+           else if (type === 'cov') hierarchy.value[lIdx].covariates.push(colObj);
+        };
+        
+        mapOne(findCol('区域维稳指数Y'), 'target', null);
+        hierarchy.value = [
+          { id: 'l1', level_index: 0, level_name: '全球阵营联盟 (Alliance)', id_column: null, covariates: []},
+          { id: 'l2', level_index: 1, level_name: '战略大区司令部 (Theater)', id_column: null, covariates: []},
+          { id: 'l3', level_index: 2, level_name: '主权国家 (State)', id_column: null, covariates: []},
+          { id: 'l4', level_index: 3, level_name: '热点爆发城市 (Flashpoint)', id_column: null, covariates: []}
+        ];
+        mapOne(findCol('势力阵营'), 'id', 0);
+        mapOne(findCol('战略大区'), 'id', 1);
+        mapOne(findCol('主权国家'), 'id', 2);
+        mapOne(findCol('热点城市'), 'id', 3);
+        
+        mapOne(findCol('经济制裁深度'), 'cov', 0);
+        mapOne(findCol('军事兵力投送量'), 'cov', 1);
+        mapOne(findCol('武器军援指数'), 'cov', 2);
+        mapOne(findCol('网络战攻击强度'), 'cov', 3);
+        if(targetVariable.value) targetVariable.value.alias = "全球综合维稳系数 Y";
     }, 100);
 };
 

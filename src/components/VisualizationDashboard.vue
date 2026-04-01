@@ -56,8 +56,8 @@
     <div class="flex-1 grid grid-cols-12 grid-rows-2 gap-5 min-h-0">
       
       <!-- Box 1: DAG Topology & Geo Map -->
-      <div class="col-span-4 row-span-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative group">
-        <div class="px-4 border-b border-slate-100 bg-slate-50 flex items-center h-12 z-10 shrink-0 select-none">
+      <div class="col-span-4 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
+        <div class="px-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm flex items-center h-12 z-10 shrink-0 select-none">
           <div class="flex space-x-6 h-full items-center">
              <button @click="activeTopLeftTab = 'dag'; setTimeout(handleResize, 100);" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='dag' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
                  <i class="fas fa-project-diagram mr-2"></i> 生成拓扑 (DAG)
@@ -73,8 +73,8 @@
       </div>
 
       <!-- Box 2: Scatter & Map -->
-      <div class="col-span-8 row-span-1 bg-deep-blue rounded-xl shadow-lg border border-slate-700 flex flex-col overflow-hidden relative group">
-        <div class="px-4 py-3 border-b border-slate-700/50 bg-slate-800/50 flex justify-between items-center z-10">
+      <div class="col-span-8 row-span-1 bg-slate-900 rounded-2xl shadow-xl border border-slate-800 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-2xl">
+        <div class="px-5 py-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center z-10">
           <h2 class="text-sm font-bold text-slate-200"><i class="fas fa-crosshairs text-neon-cyan mr-2"></i>期望与实际离差评估 (Deviation Scatter)</h2>
           <div class="flex space-x-3 items-center">
             <div class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🎯 {{ targetAlias }}</div>
@@ -85,8 +85,8 @@
       </div>
 
       <!-- Box 3: PPC Density -->
-      <div class="col-span-4 row-span-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative group">
-        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
+      <div class="col-span-4 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
+        <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
           <h2 class="text-sm font-bold text-slate-700">
             <i class="fas fa-chart-area text-blue-500 mr-2"></i>后验预测检验 (PPC)
             <span v-if="ppcScore" class="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">
@@ -99,8 +99,8 @@
       </div>
 
       <!-- Box 4: Forest/What-If Simulator -->
-      <div class="col-span-8 row-span-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative group">
-        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
+      <div class="col-span-8 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
+        <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
           <h2 class="text-sm font-bold text-slate-700"><i class="fas fa-sliders-h text-emerald-500 mr-2"></i>归因分析与反事实推演沙盘 (What-If)</h2>
           <button @click="exportChart('forest')" class="text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
         </div>
@@ -345,7 +345,7 @@ const renderGeo = () => {
             points.push({
                name: props.displayMapping[searchName] || searchName,
                value: [lng, lat, dev, perfMatch],
-               itemStyle: { color }
+               itemStyle: { color, shadowBlur: 10, shadowColor: color }
             });
         }
     });
@@ -361,8 +361,8 @@ const renderGeo = () => {
            formatter: p => {
              const perf = p.data.value[3];
              if(!perf) return `<div class="font-bold border-b pb-1 mb-1">${p.name}</div>坐标: [${p.data.value[0]}, ${p.data.value[1]}]`;
-             return `<div class="font-bold border-b pb-1 mb-1">${p.name} <span class="text-[10px] bg-slate-100 rounded px-1 ml-1">${perf.Status}</span></div>
-                     <div class="text-[11px] grid grid-cols-2 gap-x-3 gap-y-1">
+             return `<div class="font-bold border-b pb-1 mb-1 shadow-sm">${p.name} <span class="text-[10px] bg-slate-100 rounded px-1 ml-1">${perf.Status}</span></div>
+                     <div class="text-[11px] grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
                        <span class="text-slate-500">实际效能:</span> <span class="font-mono text-right">${perf.Actual}</span>
                        <span class="text-slate-500">推演期望:</span> <span class="font-mono text-right text-indigo-600">${perf.Expected.toFixed(3)}</span>
                        <span class="text-slate-500">相对偏差:</span> <span class="font-mono text-right ${perf.Deviation > 0 ? 'text-emerald-500':'text-rose-500'}">${perf.Deviation > 0 ? '+':''}${perf.Deviation.toFixed(3)}</span>
@@ -372,10 +372,11 @@ const renderGeo = () => {
        xAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°E' } },
        yAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°N' } },
        series: [{
-           type: 'scatter',
-           symbolSize: (val) => Math.max(15, Math.min(45, 15 + Math.abs(val[2] * 250))), // Dynamically scale based on deviation magnitude
-           label: { show: true, formatter: '{b}', position: 'right', fontSize: 12, fontWeight: 'bold', color: '#1e293b' },
-           itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)', opacity: 0.9, borderColor: '#fff', borderWidth: 1.5 },
+           type: 'effectScatter',
+           rippleEffect: { brushType: 'stroke', scale: 2.5 },
+           symbolSize: (val) => Math.max(15, Math.min(35, 12 + Math.abs(val[2] * 40))), // Dynamic sizing
+           label: { show: true, formatter: '{b}', position: 'right', fontSize: 13, fontWeight: 'bold', color: '#1e293b', textBorderColor: '#fff', textBorderWidth: 2 },
+           itemStyle: { opacity: 0.9, borderColor: '#fff', borderWidth: 1.5 },
            data: points
        }]
     });
@@ -412,17 +413,18 @@ const renderScatter = (dataData) => {
       textStyle: { color: '#94a3b8' },
       pieces: [
         { min: threshold, label: titles.value.bright, color: '#00f0ff' }, 
-        { min: -threshold, max: threshold, label: '系统稳态区间', color: '#475569' },
-        { max: -threshold, label: titles.value.dark, color: '#f43f5e' }
+        { min: -threshold, max: threshold, label: '系统稳态区间', color: '#64748b' },
+        { max: -threshold, label: titles.value.dark, color: '#fb7185' }
       ]
     },
     series: [{ 
-        type: 'scatter', 
+        type: 'effectScatter', 
         itemStyle: {
-            shadowBlur: 10,
-            shadowColor: 'rgba(0, 240, 255, 0.5)'
+            shadowBlur: 15,
+            shadowColor: 'rgba(0, 240, 255, 0.2)'
         },
-        symbolSize: (d) => Math.abs(d[1]) > threshold ? 14 : 6, 
+        rippleEffect: { period: 4, scale: 2.5, brushType: 'stroke' },
+        symbolSize: (d) => Math.abs(d[1]) > threshold ? 18 : 8, 
         data: parsedData,
         animationDurationUpdate: 500,
         animationEasingUpdate: 'cubicInOut'
