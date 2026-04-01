@@ -69,7 +69,16 @@
           <button @click="exportChart(activeTopLeftTab)" class="ml-auto text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
         </div>
         <div v-show="activeTopLeftTab === 'dag'" ref="dagChartRef" class="flex-1 w-full relative z-0"></div>
-        <div v-show="activeTopLeftTab === 'geo'" ref="geoChartRef" class="flex-1 w-full relative z-0"></div>
+        <div v-show="activeTopLeftTab === 'geo'" class="flex-1 w-full relative z-0 flex flex-col">
+          <div ref="geoChartRef" class="flex-1 w-full" style="background-color: #0b1120;"></div>
+          <!-- Geo Legend Overlay -->
+          <div class="absolute bottom-4 left-4 text-[10px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg backdrop-blur-md border border-slate-700 pointer-events-none shadow-xl">
+             <div class="font-bold text-slate-100 mb-1.5 border-b border-slate-600 pb-1">地理空间偏差说明</div>
+             <div class="flex items-center mb-1"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 shadow-[0_0_5px_#10b981]"></span> 效能高于预期 (涟漪向外扩散)</div>
+             <div class="flex items-center mb-1"><span class="w-2 h-2 rounded-full bg-rose-500 mr-2 shadow-[0_0_5px_#f43f5e]"></span> 效能低于预期 (核心高亮红色)</div>
+             <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-indigo-500 mr-2 shadow-[0_0_5px_#4f46e5]"></span> 符合推演基准 (常规稳定点)</div>
+          </div>
+        </div>
       </div>
 
       <!-- Box 2: Scatter & Map -->
@@ -142,8 +151,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, shallowRef } from 'vue';
+import { ref, onMounted, onUnmounted, watch, shallowRef, computed } from 'vue';
 import * as echarts from 'echarts';
+import worldGeoJson from '../assets/world.json';
 
 const props = defineProps({
   modelResults: { type: Object, required: true },
@@ -171,7 +181,7 @@ const forestChartRef = ref(null);
 const charts = shallowRef({});
 
 const activeTopLeftTab = ref('dag');
-import { computed } from 'vue';
+
 const hasGeoData = computed(() => {
     if(!props.rawTableData || props.rawTableData.length === 0) return false;
     const sample = props.rawTableData[0];
@@ -189,6 +199,7 @@ const targetAlias = ref('Observational Target');
 let resizeObserver = null;
 
 onMounted(() => {
+  echarts.registerMap('world', worldGeoJson);
   charts.value.dag = echarts.init(dagChartRef.value);
   charts.value.geo = echarts.init(geoChartRef.value);
   charts.value.scatter = echarts.init(scatterChartRef.value);
@@ -280,7 +291,7 @@ const renderAll = () => {
     renderScatter(originalPerformanceData);
     renderPPC(props.modelResults.ppc_data);
     renderForest(props.modelResults.summary_df);
-    if(hasGeoData.value) renderGeo();
+    if(hasGeoData.value) renderGeo(originalPerformanceData);
 };
 
 // 1. Render DAG Tree
@@ -329,7 +340,7 @@ const renderDAG = (schema) => {
 };
 
 // 1.5 Render Geo
-const renderGeo = () => {
+const renderGeo = (dataData = originalPerformanceData) => {
     if(!charts.value.geo || !hasGeoData.value) return;
     
     // Find the right keys
@@ -338,12 +349,13 @@ const renderGeo = () => {
     const latKey = ['纬度坐标', '纬度', 'lat', 'latitude'].find(k => k in sample);
     
     const points = [];
+    let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90;
     
     props.rawTableData.forEach(row => {
         // try to find matching node in performance data to color code it
         const targetLevelIdCol = props.hierarchySchema[props.hierarchySchema.length-1]?.id_column;
         const searchName = row[targetLevelIdCol] || Object.values(row)[0];
-        const perfMatch = originalPerformanceData.find(p => p.NodeName === searchName);
+        const perfMatch = dataData.find(p => p.NodeName === searchName);
         
         const dev = perfMatch ? perfMatch.Deviation : 0;
         const color = perfMatch ? (perfMatch.Status === 'Bright' ? '#10b981' : (perfMatch.Status === 'Dark' ? '#f43f5e' : '#4f46e5')) : '#94a3b8';
@@ -351,6 +363,11 @@ const renderGeo = () => {
         const lng = parseFloat(row[lngKey]);
         const lat = parseFloat(row[latKey]);
         if(!isNaN(lng) && !isNaN(lat)) {
+            if (lng < minLng) minLng = lng;
+            if (lng > maxLng) maxLng = lng;
+            if (lat < minLat) minLat = lat;
+            if (lat > maxLat) maxLat = lat;
+            
             points.push({
                name: props.displayMapping[searchName] || searchName,
                value: [lng, lat, dev, perfMatch],
@@ -359,11 +376,31 @@ const renderGeo = () => {
         }
     });
     
+    // Auto-zooming bounds margins
+    let lngMargin = (maxLng - minLng) * 0.1 || 5;
+    let latMargin = (maxLat - minLat) * 0.1 || 5;
+    
     // Sort array to put Dark spots on top (z-index wise in echarts, drawn last)
     points.sort((a,b) => Math.abs(a.value[2]) - Math.abs(b.value[2]));
 
     charts.value.geo.setOption({
-       grid: { left: 50, right: 50, top: 50, bottom: 50 },
+       backgroundColor: 'transparent',
+       geo: {
+          map: 'world',
+          roam: true, // Allow user panning and zooming
+          boundingCoords: [
+              [minLng - lngMargin, maxLat + latMargin], // top-left
+              [maxLng + lngMargin, minLat - latMargin]  // bottom-right
+          ],
+          itemStyle: { 
+             areaColor: '#1e293b', 
+             borderColor: '#334155' 
+          },
+          emphasis: { 
+             itemStyle: { areaColor: '#334155' },
+             label: { show: false }
+          }
+       },
        tooltip: { 
            trigger: 'item', 
            backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -378,18 +415,17 @@ const renderGeo = () => {
                      </div>`;
            }
        },
-       xAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°E' } },
-       yAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°N' } },
        series: [{
            type: 'effectScatter',
-           coordinateSystem: 'cartesian2d',
-           rippleEffect: { brushType: 'stroke', scale: 2.5 },
-           symbolSize: (val) => Math.max(15, Math.min(35, 12 + Math.abs(val[2] * 40))), // Dynamic sizing
-           label: { show: true, formatter: '{b}', position: 'right', fontSize: 13, fontWeight: 'bold', color: '#1e293b', textBorderColor: '#fff', textBorderWidth: 2 },
+           coordinateSystem: 'geo',
+           rippleEffect: { brushType: 'stroke', scale: 3.5 },
+           symbolSize: (val) => Math.max(10, Math.min(25, 8 + Math.abs(val[2] * 40))), 
+           label: { show: true, formatter: '{b}', position: 'right', fontSize: 13, fontWeight: 'bold', color: '#f1f5f9', textBorderColor: '#000', textBorderWidth: 2 },
            itemStyle: { opacity: 0.9, borderColor: '#fff', borderWidth: 1.5 },
-           data: points
+           data: points,
+           animationDurationUpdate: 500
        }]
-    });
+    }, true); // true forces merge
 };
 
 // 2. Render Premium Scatter
@@ -532,14 +568,23 @@ const updateWhatIf = () => {
        d.Expected = d.Expected + cumulativeShift; 
        // Deviation = Actual - Expected. If Expected rises, Deviation falls!
        d.Deviation = d.Actual - d.Expected;
+       
+       // Update logic for highlighting
+       const std_dev = Math.abs(originalPerformanceData[0] ? originalPerformanceData[0].Deviation : 1); 
+       const threshold = std_dev > 0.01 ? std_dev : 1.0; 
+       if (d.Deviation > threshold) d.Status = 'Bright';
+       else if (d.Deviation < -threshold) d.Status = 'Dark';
+       else d.Status = 'Neutral';
     });
     
     renderScatter(newData); // Re-render smoothly!
+    if(hasGeoData.value) renderGeo(newData); // Re-render map!
 };
 
 const resetWhatIf = () => {
     editableCovariates.value.forEach(c => c.delta = 0);
     renderScatter(originalPerformanceData);
+    if(hasGeoData.value) renderGeo(originalPerformanceData);
 };
 
 // --- EXPORT LOGIC ---
