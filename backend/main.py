@@ -39,9 +39,26 @@ class InferenceRequest(BaseModel):
 async def run_inference(req: InferenceRequest):
     try:
         df = pd.DataFrame(req.raw_data)
+        
+        # 稳健的数据预处理：强制转换数值型并剔除含有空值的行
+        id_cols = [l.id_column for l in req.hierarchy if l.id_column]
+        cov_cols = [cov for l in req.hierarchy for cov in l.covariates]
+        target_col = req.target_variable.name
+        
+        numeric_cols = cov_cols + [target_col]
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+                
+        present_cols = [c for c in (id_cols + numeric_cols) if c in df.columns]
+        df = df.dropna(subset=present_cols).copy()
+        
+        if len(df) == 0:
+             raise ValueError("解析后发现所有行均包含空值或格式错误的数据，中止计算。")
+             
         Y_obs = df[req.target_variable.name].values
         
-        # 提取最底层节点名称 (战术层)
+        # 提取最底层节点名称
         bottom_level_id = req.hierarchy[-1].id_column
         node_names = df[bottom_level_id].values
         
@@ -67,13 +84,15 @@ async def run_inference(req: InferenceRequest):
             
         model = build_dynamic_pymc_model(Y_obs, parsed_levels)
         trace = run_mcmc_sampling(model)
-        performance_data, summary_df = extract_insights(trace, Y_obs, node_names)
+        performance_data, summary_df, ppc_data, betas = extract_insights(trace, Y_obs, node_names)
         
         return {
             "status": "success", 
             "results": {
                 "performance_data": performance_data, 
-                "summary_df": summary_df
+                "summary_df": summary_df,
+                "ppc_data": ppc_data,
+                "betas": betas
             }
         }
         
