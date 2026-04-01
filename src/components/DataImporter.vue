@@ -384,6 +384,7 @@ const onDragStart = (e, item, sourceType, levelIndex, covIndex) => {
   draggedItem.value = item;
   dragSource.value = { type: sourceType, levelIndex, covIndex };
   e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', item.id); // Safari/Chrome requires setData to not cancel drag
   e.currentTarget.classList.add('opacity-50');
 };
 

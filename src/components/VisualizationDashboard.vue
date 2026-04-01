@@ -55,13 +55,21 @@
     <!-- 4-Grid Dashboard Area -->
     <div class="flex-1 grid grid-cols-12 grid-rows-2 gap-5 min-h-0">
       
-      <!-- Box 1: DAG Topology -->
+      <!-- Box 1: DAG Topology & Geo Map -->
       <div class="col-span-4 row-span-1 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden relative group">
-        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
-          <h2 class="text-sm font-bold text-slate-700"><i class="fas fa-project-diagram text-indigo-500 mr-2"></i>生成拓扑 (DAG)</h2>
-          <button @click="exportChart('dag')" class="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
+        <div class="px-4 border-b border-slate-100 bg-slate-50 flex items-center h-12 z-10 shrink-0 select-none">
+          <div class="flex space-x-6 h-full items-center">
+             <button @click="activeTopLeftTab = 'dag'; setTimeout(handleResize, 100);" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='dag' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
+                 <i class="fas fa-project-diagram mr-2"></i> 生成拓扑 (DAG)
+             </button>
+             <button v-if="hasGeoData" @click="activeTopLeftTab = 'geo'; setTimeout(handleResize, 100);" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='geo' ? 'text-emerald-600 border-emerald-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
+                 <i class="fas fa-map-marked-alt mr-2"></i> 地理布控 (GEO)
+             </button>
+          </div>
+          <button @click="exportChart(activeTopLeftTab)" class="ml-auto text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
         </div>
-        <div ref="dagChartRef" class="flex-1 w-full relative z-0"></div>
+        <div v-show="activeTopLeftTab === 'dag'" ref="dagChartRef" class="flex-1 w-full relative z-0"></div>
+        <div v-show="activeTopLeftTab === 'geo'" ref="geoChartRef" class="flex-1 w-full relative z-0"></div>
       </div>
 
       <!-- Box 2: Scatter & Map -->
@@ -139,7 +147,9 @@ import * as echarts from 'echarts';
 
 const props = defineProps({
   modelResults: { type: Object, required: true },
-  hierarchySchema: { type: Array, required: true }
+  hierarchySchema: { type: Array, required: true },
+  displayMapping: { type: Object, default: () => ({}) },
+  rawTableData: { type: Array, default: () => [] }
 });
 
 const emit = defineEmits(['reset']);
@@ -154,10 +164,20 @@ const titles = ref({
 
 // Chart Refs
 const dagChartRef = ref(null);
+const geoChartRef = ref(null);
 const scatterChartRef = ref(null);
 const ppcChartRef = ref(null);
 const forestChartRef = ref(null);
 const charts = shallowRef({});
+
+const activeTopLeftTab = ref('dag');
+import { computed } from 'vue';
+const hasGeoData = computed(() => {
+    if(!props.rawTableData || props.rawTableData.length === 0) return false;
+    const sample = props.rawTableData[0];
+    return ('经度坐标' in sample || 'lng' in sample || 'longitude' in sample) && 
+           ('纬度坐标' in sample || 'lat' in sample || 'latitude' in sample);
+});
 
 // What-If States
 const editableCovariates = ref([]);
@@ -166,22 +186,39 @@ let originalPerformanceData = [];
 // Derived aliases
 const targetAlias = ref('Observational Target');
 
+let resizeObserver = null;
+
 onMounted(() => {
   charts.value.dag = echarts.init(dagChartRef.value);
+  charts.value.geo = echarts.init(geoChartRef.value);
   charts.value.scatter = echarts.init(scatterChartRef.value);
   charts.value.ppc = echarts.init(ppcChartRef.value);
   charts.value.forest = echarts.init(forestChartRef.value);
   
   window.addEventListener('resize', handleResize);
   
+  resizeObserver = new ResizeObserver(() => {
+    handleResize();
+  });
+  
+  setTimeout(() => {
+    if(dagChartRef.value) resizeObserver.observe(dagChartRef.value.parentElement);
+    if(geoChartRef.value) resizeObserver.observe(geoChartRef.value.parentElement);
+    if(scatterChartRef.value) resizeObserver.observe(scatterChartRef.value.parentElement);
+    if(ppcChartRef.value) resizeObserver.observe(ppcChartRef.value.parentElement);
+    if(forestChartRef.value) resizeObserver.observe(forestChartRef.value.parentElement);
+  }, 100);
+  
   if (props.modelResults) {
     initializeData();
     renderAll();
+    setTimeout(() => { handleResize(); }, 300);
   }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
+  if (resizeObserver) resizeObserver.disconnect();
   Object.values(charts.value).forEach(c => c && c.dispose());
 });
 
@@ -209,7 +246,7 @@ const initializeData = () => {
       Object.keys(props.modelResults.betas).forEach(origName => {
         editableCovariates.value.push({
             original: origName,
-            alias: origName, // can be looked up from display mapping if passed properly
+            alias: props.displayMapping[origName] || origName, 
             beta: props.modelResults.betas[origName],
             delta: 0
         });
@@ -229,10 +266,12 @@ const applyMetaChanges = () => {
 };
 
 const renderAll = () => {
-  renderDAG(props.hierarchySchema);
-  renderScatter(originalPerformanceData);
-  renderPPC(props.modelResults.ppc_data);
-  renderForest(props.modelResults.summary_df);
+    if(!props.modelResults) return;
+    renderDAG(props.hierarchySchema);
+    renderScatter(originalPerformanceData);
+    renderPPC(props.modelResults.ppc_data);
+    renderForest(props.modelResults.summary_df);
+    if(hasGeoData.value) renderGeo();
 };
 
 // 1. Render DAG Tree
@@ -260,19 +299,91 @@ const renderDAG = (schema) => {
         series: [{
             type: 'graph',
             layout: 'force',
-            force: { repulsion: 300, edgeLength: [30, 80] },
+            symbolSize: (value, params) => params.data.category === 3 ? 55 : 45,
+            itemStyle: {
+              borderColor: '#fff',
+              borderWidth: 2,
+              shadowBlur: 10,
+              shadowColor: 'rgba(0, 0, 0, 0.15)'
+            },
+            label: { show: true, position: 'right', fontSize: 13, fontWeight: 'bold', color: '#334155' },
+            edgeSymbol: ['none', 'arrow'],
+            edgeSymbolSize: [4, 10],
+            edgeLabel: { fontSize: 10 },
+            lineStyle: { color: '#94a3b8', width: 2, curveness: 0.2, opacity: 0.8 },
+            force: { repulsion: 800, edgeLength: 120, gravity: 0.1 },
             roam: true,
-            label: { show: true, position: 'right', fontSize: 10 },
             data: nodes,
-            links: links,
-            lineStyle: { color: 'source', curveness: 0.3 }
+            links: links
         }]
+    });
+};
+
+// 1.5 Render Geo
+const renderGeo = () => {
+    if(!charts.value.geo || !hasGeoData.value) return;
+    
+    // Find the right keys
+    const sample = props.rawTableData[0];
+    const lngKey = ['经度坐标', '经度', 'lng', 'longitude'].find(k => k in sample);
+    const latKey = ['纬度坐标', '纬度', 'lat', 'latitude'].find(k => k in sample);
+    
+    const points = [];
+    
+    props.rawTableData.forEach(row => {
+        // try to find matching node in performance data to color code it
+        const targetLevelIdCol = props.hierarchySchema[props.hierarchySchema.length-1]?.id_column;
+        const searchName = row[targetLevelIdCol] || Object.values(row)[0];
+        const perfMatch = originalPerformanceData.find(p => p.NodeName === searchName);
+        
+        const dev = perfMatch ? perfMatch.Deviation : 0;
+        const color = perfMatch ? (perfMatch.Status === 'Bright' ? '#10b981' : (perfMatch.Status === 'Dark' ? '#f43f5e' : '#4f46e5')) : '#94a3b8';
+        
+        const lng = parseFloat(row[lngKey]);
+        const lat = parseFloat(row[latKey]);
+        if(!isNaN(lng) && !isNaN(lat)) {
+            points.push({
+               name: props.displayMapping[searchName] || searchName,
+               value: [lng, lat, dev, perfMatch],
+               itemStyle: { color }
+            });
+        }
+    });
+    
+    // Sort array to put Dark spots on top (z-index wise in echarts, drawn last)
+    points.sort((a,b) => Math.abs(a.value[2]) - Math.abs(b.value[2]));
+
+    charts.value.geo.setOption({
+       grid: { left: 50, right: 50, top: 50, bottom: 50 },
+       tooltip: { 
+           trigger: 'item', 
+           backgroundColor: 'rgba(255, 255, 255, 0.95)',
+           formatter: p => {
+             const perf = p.data.value[3];
+             if(!perf) return `<div class="font-bold border-b pb-1 mb-1">${p.name}</div>坐标: [${p.data.value[0]}, ${p.data.value[1]}]`;
+             return `<div class="font-bold border-b pb-1 mb-1">${p.name} <span class="text-[10px] bg-slate-100 rounded px-1 ml-1">${perf.Status}</span></div>
+                     <div class="text-[11px] grid grid-cols-2 gap-x-3 gap-y-1">
+                       <span class="text-slate-500">实际效能:</span> <span class="font-mono text-right">${perf.Actual}</span>
+                       <span class="text-slate-500">推演期望:</span> <span class="font-mono text-right text-indigo-600">${perf.Expected.toFixed(3)}</span>
+                       <span class="text-slate-500">相对偏差:</span> <span class="font-mono text-right ${perf.Deviation > 0 ? 'text-emerald-500':'text-rose-500'}">${perf.Deviation > 0 ? '+':''}${perf.Deviation.toFixed(3)}</span>
+                     </div>`;
+           }
+       },
+       xAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°E' } },
+       yAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°N' } },
+       series: [{
+           type: 'scatter',
+           symbolSize: (val) => Math.max(15, Math.min(45, 15 + Math.abs(val[2] * 250))), // Dynamically scale based on deviation magnitude
+           label: { show: true, formatter: '{b}', position: 'right', fontSize: 12, fontWeight: 'bold', color: '#1e293b' },
+           itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.3)', opacity: 0.9, borderColor: '#fff', borderWidth: 1.5 },
+           data: points
+       }]
     });
 };
 
 // 2. Render Premium Scatter
 const renderScatter = (dataData) => {
-  const parsedData = dataData.map(d => [d.Expected, d.Deviation, d.NodeName, d.Actual]);
+  const parsedData = dataData.map(d => [d.Expected, d.Deviation, props.displayMapping[d.NodeName] || d.NodeName, d.Actual]);
   const std_dev = Math.abs(parsedData[0] ? parsedData[0][1] : 1); // rough scaling
   const threshold = std_dev > 0.01 ? std_dev : 1.0; 
   
@@ -354,7 +465,19 @@ const renderForest = (summaryDf) => {
   if(!summaryDf) return;
   const effectData = Object.entries(summaryDf)
     .filter(([k]) => k.startsWith('beta_'))
-    .map(([k, v]) => [k.replace('beta_', ''), v['hdi_3%'], v['mean'], v['hdi_97%']])
+    .map(([k, v]) => {
+       const keys = Object.keys(v);
+       // Find HDI bound keys, e.g. "hdi_3%" and "hdi_97%" or "hdi_2.5%"
+       const hdiLowKey = keys.find(k => k.startsWith('hdi') && (!k.includes('9') || k === 'hdi_9%')) || keys[2]; 
+       const hdiHighKey = keys.find(k => k.startsWith('hdi') && k.includes('9')) || keys[3];
+       
+       return [
+         props.displayMapping[k.replace('beta_', '')] || k.replace('beta_', ''), 
+         v[hdiLowKey], 
+         v['mean'], 
+         v[hdiHighKey]
+       ];
+    })
     .sort((a, b) => a[2] - b[2]); // Sort by mean
 
   charts.value.forest.setOption({
@@ -366,7 +489,7 @@ const renderForest = (summaryDf) => {
       {
         type: 'custom',
         renderItem: (params, api) => {
-          const y = api.coord([0, api.value(0)])[1];
+          const y = api.coord([0, params.dataIndex])[1]; // params.dataIndex correctly grabs the categorical rank/tick
           const color = api.value(2) > 0 ? '#10b981' : '#f43f5e';
           return {
             type: 'group',
@@ -439,7 +562,9 @@ const exportCSV = () => {
     const link = document.createElement("a");
     link.href = url;
     link.download = `DeepBayes_Report_${Date.now()}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 };
 
 </script>

@@ -4,7 +4,12 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
 import numpy as np
+import time
+import sys
+import os
 import uvicorn
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from model_factory import build_dynamic_pymc_model, run_mcmc_sampling
 from analyzer import extract_insights
@@ -34,6 +39,8 @@ class InferenceRequest(BaseModel):
     target_variable: TargetVariable
     hierarchy: List[SchemaLevel]
     raw_data: List[Dict[str, Any]]
+
+import traceback
 
 @app.post("/api/run_inference")
 async def run_inference(req: InferenceRequest):
@@ -97,6 +104,7 @@ async def run_inference(req: InferenceRequest):
         }
         
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"后端引擎推理失败: {str(e)}")
 
 if __name__ == "__main__":

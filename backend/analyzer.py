@@ -2,7 +2,8 @@ import arviz as az
 import numpy as np
 
 def extract_insights(trace, Y_obs, node_names):
-    posterior_mu = trace.posterior['Y_est'].mean(dim=["chain", "draw"]).values
+    # Retrieve expected predicted values from the posterior predictive check
+    posterior_mu = trace.posterior_predictive['Y_est'].mean(dim=["chain", "draw"]).values
     deviations = Y_obs - posterior_mu
     std_dev = np.std(deviations)
     

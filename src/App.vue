@@ -21,22 +21,44 @@
       <transition name="fade-slide" mode="out-in">
         <DataImporter v-if="currentStep === 'import'" @health-check="openHealthCheck" />
         
-        <div v-else-if="currentStep === 'inferencing'" class="absolute inset-0 flex flex-col justify-center items-center bg-ice-white bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white to-slate-100 z-10">
-          <div class="relative w-24 h-24 flex items-center justify-center mb-6">
+        <div v-else-if="currentStep === 'inferencing'" class="absolute inset-0 flex flex-col justify-center items-center bg-ice-white bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white to-slate-50 z-10 p-10">
+          <div class="relative w-24 h-24 flex items-center justify-center mb-8">
             <div class="absolute inset-0 rounded-full border-t-4 border-neon-cyan animate-spin opacity-80"></div>
             <div class="absolute inset-2 rounded-full border-b-4 border-indigo-600 animate-spin opacity-60" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
             <i class="fas fa-brain text-4xl text-deep-blue"></i>
           </div>
-          <h2 class="text-2xl font-black text-deep-blue tracking-tight">正在解析 N 维张量网络...</h2>
-          <p class="text-slate-500 mt-3 flex items-center">
-            <i class="fas fa-microchip mr-2"></i> 核心推演引擎 MCMC NUTS 采样启动
-          </p>
+          <h2 class="text-2xl font-black text-deep-blue tracking-tight mb-8">深度贝叶斯网络推演运算中...</h2>
+          
+          <!-- Progress Bar -->
+          <div class="w-full max-w-2xl bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
+             <div class="flex justify-between text-xs font-bold text-slate-500 mb-2">
+                 <span>算力推进状态</span>
+                 <span class="text-indigo-600">{{ loadingProgress.toFixed(0) }}%</span>
+             </div>
+             <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-6">
+                 <div class="bg-gradient-to-r from-neon-cyan to-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out" :style="{ width: loadingProgress + '%' }"></div>
+             </div>
+             
+             <!-- Terminal Logs -->
+             <div class="bg-[#0a192f] rounded-lg p-4 font-mono text-[11px] text-slate-300 h-40 overflow-y-auto shadow-inner flex flex-col space-y-2 relative">
+                <div class="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-[#0a192f] to-transparent z-10"></div>
+                <div v-for="tip in loadingTips" :key="tip.id" class="flex gap-3">
+                   <span :class="{'text-emerald-400': tip.status==='done', 'text-amber-400 animate-pulse': tip.status==='loading'}" class="w-4 flex-shrink-0 text-center">
+                     <i :class="tip.status === 'done' ? 'fas fa-check' : 'fas fa-cog fa-spin'"></i>
+                   </span>
+                   <span class="text-slate-500 w-12 flex-shrink-0">[{{ tip.time }}]</span>
+                   <span :class="{'text-white': tip.status==='loading', 'text-slate-400': tip.status==='done'}">{{ tip.text }}</span>
+                </div>
+             </div>
+          </div>
         </div>
 
         <VisualizationDashboard 
           v-else-if="currentStep === 'dashboard'" 
           :modelResults="inferenceResults" 
           :hierarchySchema="currentHierarchy"
+          :displayMapping="currentDisplayMapping"
+          :rawTableData="rawTableData"
           @reset="currentStep = 'import'"
         />
       </transition>
@@ -62,6 +84,7 @@
             :hierarchy="currentHierarchy" 
             :targetVariable="currentTarget" 
             :tableData="rawTableData"
+            :displayMapping="currentDisplayMapping"
             @close="showHealthCheckModal = false" 
             @proceed="startInference"
           />
@@ -84,11 +107,17 @@ const rawTableData = ref([]);
 const currentHierarchy = ref([]);
 const currentTarget = ref(null);
 const inferenceResults = ref(null);
+const currentDisplayMapping = ref({});
+
+const loadingProgress = ref(0);
+const loadingTips = ref([]);
+let progressInterval = null;
 
 const openHealthCheck = (payload) => {
   rawTableData.value = payload.tableData;
   currentHierarchy.value = payload.hierarchy;
   currentTarget.value = payload.target;
+  currentDisplayMapping.value = payload.displayMapping || {};
   showHealthCheckModal.value = true;
 };
 
@@ -96,6 +125,29 @@ const startInference = async (cleanSchema) => {
   showHealthCheckModal.value = false;
   currentStep.value = 'inferencing';
   
+  loadingProgress.value = 0;
+  loadingTips.value = [
+    { id: 1, time: '0.0s', text: '正在初始化贝叶斯有向无环图 (DAG) 引擎...', status: 'done' },
+    { id: 2, time: '...', text: '编译张量核心及构建对数似然梯度映射...', status: 'loading' }
+  ];
+
+  const startTime = Date.now();
+  progressInterval = setInterval(() => {
+    if(loadingProgress.value < 88) loadingProgress.value += Math.random() * 4;
+    
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    if(loadingProgress.value > 30 && loadingTips.value.length === 2) {
+       loadingTips.value[1].status = 'done';
+       loadingTips.value[1].time = elapsed;
+       loadingTips.value.push({ id: 3, time: '...', text: '启动 MCMC NUTS 并行马尔可夫链抽样 (耗时最长)...', status: 'loading' });
+    }
+    if(loadingProgress.value > 65 && loadingTips.value.length === 3) {
+       loadingTips.value[2].status = 'done';
+       loadingTips.value[2].time = elapsed;
+       loadingTips.value.push({ id: 4, time: '...', text: '核对 R_hat 收敛度并提取后验预测核密度 (PPC)...', status: 'loading' });
+    }
+  }, 400);
+
   try {
     const response = await fetch('http://127.0.0.1:8000/api/run_inference', {
       method: 'POST',
@@ -111,8 +163,17 @@ const startInference = async (cleanSchema) => {
     if(!response.ok) throw new Error("后端计算失败");
     const data = await response.json();
     
-    inferenceResults.value = data.results;
-    currentStep.value = 'dashboard';
+    clearInterval(progressInterval);
+    loadingProgress.value = 100;
+    loadingTips.value[loadingTips.value.length-1].status = 'done';
+    loadingTips.value[loadingTips.value.length-1].time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    loadingTips.value.push({ id: 5, time: '完成', text: '参数矩阵装填完毕，即将开启全息控制台！', status: 'done' });
+    
+    setTimeout(() => {
+        inferenceResults.value = data.results;
+        currentStep.value = 'dashboard';
+    }, 800);
+    
 
   } catch (error) {
     console.error(error);

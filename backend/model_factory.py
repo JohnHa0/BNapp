@@ -33,7 +33,7 @@ def build_dynamic_pymc_model(Y_obs, parsed_levels):
 
 def run_mcmc_sampling(model):
     with model:
-        # 使用 numpyro 激活 GPU/多核加速
-        trace = pm.sample(draws=1500, tune=1000, target_accept=0.9, nuts_sampler="numpyro", return_inferencedata=True)
+        # 使用 PyTensor C/Numba 后端 (由于最新jax/numpyro移除了 linear_util 接口)
+        trace = pm.sample(draws=1500, tune=1000, target_accept=0.9, return_inferencedata=True)
         pm.sample_posterior_predictive(trace, extend_inferencedata=True)
     return trace
