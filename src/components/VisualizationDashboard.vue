@@ -59,10 +59,10 @@
       <div class="col-span-4 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
         <div class="px-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm flex items-center h-12 z-10 shrink-0 select-none">
           <div class="flex space-x-6 h-full items-center">
-             <button @click="activeTopLeftTab = 'dag'; setTimeout(handleResize, 100);" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='dag' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
+             <button @click="switchTab('dag')" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='dag' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
                  <i class="fas fa-project-diagram mr-2"></i> 生成拓扑 (DAG)
              </button>
-             <button v-if="hasGeoData" @click="activeTopLeftTab = 'geo'; setTimeout(handleResize, 100);" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='geo' ? 'text-emerald-600 border-emerald-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
+             <button v-if="hasGeoData" @click="switchTab('geo')" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='geo' ? 'text-emerald-600 border-emerald-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
                  <i class="fas fa-map-marked-alt mr-2"></i> 地理布控 (GEO)
              </button>
           </div>
@@ -224,6 +224,15 @@ onUnmounted(() => {
 
 const handleResize = () => Object.values(charts.value).forEach(c => c && c.resize());
 
+const switchTab = (tab) => {
+    activeTopLeftTab.value = tab;
+    setTimeout(() => {
+        handleResize();
+        if (tab === 'geo' && hasGeoData.value) renderGeo();
+        if (tab === 'dag') renderDAG(props.hierarchySchema);
+    }, 50);
+};
+
 watch(() => props.modelResults, (newVal) => { 
   if(newVal) {
     initializeData();
@@ -373,6 +382,7 @@ const renderGeo = () => {
        yAxis: { type: 'value', scale: true, splitLine: { show: false }, axisLabel: { formatter: '{value}°N' } },
        series: [{
            type: 'effectScatter',
+           coordinateSystem: 'cartesian2d',
            rippleEffect: { brushType: 'stroke', scale: 2.5 },
            symbolSize: (val) => Math.max(15, Math.min(35, 12 + Math.abs(val[2] * 40))), // Dynamic sizing
            label: { show: true, formatter: '{b}', position: 'right', fontSize: 13, fontWeight: 'bold', color: '#1e293b', textBorderColor: '#fff', textBorderWidth: 2 },
