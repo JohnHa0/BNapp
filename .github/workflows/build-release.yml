@@ -1,7 +1,8 @@
 name: Release Build (Win / Mac / Ubuntu)
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -12,17 +13,16 @@ jobs:
         include:
           - platform: 'macos-latest'
             target: 'x86_64-apple-darwin'
-            arch_ext: 'aarch64-apple-darwin' # We will use universal or build twice
             os_name: 'macos'
-            binary_name: 'bnapp-backend-x86_64-apple-darwin'
+            binary_name: 'main-x86_64-apple-darwin'
           - platform: 'ubuntu-20.04'
             target: 'x86_64-unknown-linux-gnu'
             os_name: 'ubuntu'
-            binary_name: 'bnapp-backend-x86_64-unknown-linux-gnu'
+            binary_name: 'main-x86_64-unknown-linux-gnu'
           - platform: 'windows-latest'
             target: 'x86_64-pc-windows-msvc'
             os_name: 'windows'
-            binary_name: 'bnapp-backend-x86_64-pc-windows-msvc.exe'
+            binary_name: 'main-x86_64-pc-windows-msvc.exe'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -33,6 +33,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -48,32 +49,36 @@ jobs:
         if: matrix.platform == 'ubuntu-20.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.0-dev
 
       - name: Install Python Backend Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller fastapi uvicorn pandas numpy pymc arviz numpyro jax
+          pip install pyinstaller -r backend/requirements.txt
+          # If requirements.txt is too heavy for CI disk, consider stripping jax-cuda if not needed for builds
 
       - name: Build Python Sidecar (PyInstaller)
         run: |
-          pyinstaller --onefile --name bnapp-backend backend/main.py
+          pyinstaller --onefile --name main backend/main.py
           mkdir -p src-tauri/binaries
-          
-          # Move and rename binary for Tauri sidecar expectation
-          # Note: Windows creates .exe automatically
-          cp dist/bnapp-backend* src-tauri/binaries/${{ matrix.binary_name }}
+          mv dist/main* src-tauri/binaries/${{ matrix.binary_name }}
 
       - name: Install Frontend Dependencies
-        run: npm i
+        run: npm ci
 
-      - name: Build Tauri App
+      - name: Build and Release Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v1.0.0 # Change as needed or use ${{ github.ref_name }} on release
-          releaseName: 'DeepBayes Evaluation Pipeline v1.0.0'
-          releaseBody: '跨平台打包发布：包含 Windows, macOS, 和 Ubuntu (银河麒麟/统信OS 兼容)。'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'DeepBayes Evaluation Pipeline ${{ github.ref_name }}'
+          releaseBody: |
+            ## 全平台发布说明
+            - **Windows**: 支持 .msi / .exe 安装程序。
+            - **macOS**: 支持 Intel/Apple Silicon (模拟) .dmg。
+            - **Ubuntu**: 兼容 Linux 发行版 .deb / .AppImage。
+            
+            内置 Python 推演后端 (NUTS Sampler v1.0)。
           releaseDraft: true
           prerelease: false

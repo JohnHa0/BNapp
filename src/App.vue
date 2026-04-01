@@ -228,7 +228,9 @@ const startInference = async (cleanSchema) => {
   }, 400);
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/run_inference', {
+    const isProd = import.meta.env.PROD;
+    const baseUrl = isProd ? 'http://127.0.0.1:8000' : 'http://127.0.0.1:8000';
+    const response = await fetch(`${baseUrl}/api/run_inference`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
