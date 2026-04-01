@@ -206,6 +206,9 @@ import DataImporter from './components/DataImporter.vue';
 import DataHealthCheck from './components/DataHealthCheck.vue';
 import VisualizationDashboard from './components/VisualizationDashboard.vue';
 
+const isProd = import.meta.env.PROD;
+const API_BASE_URL = isProd ? 'http://127.0.0.1:18521' : 'http://127.0.0.1:8000';
+
 const currentStep = ref('import');
 const showHealthCheckModal = ref(false);
 
@@ -216,6 +219,7 @@ const inferenceResults = ref(null);
 const currentDisplayMapping = ref({});
 const currentSamplingMode = ref('fast');
 const currentCustomDraws = ref(500);
+const currentCustomTune = ref(300);
 const showHelpGuide = ref(false);
 const systemInfo = ref(null);
 const gpuInstallStatus = ref('idle'); // idle, loading, success, error
@@ -226,7 +230,7 @@ let progressInterval = null;
 
 const fetchSystemInfo = async () => {
     try {
-        const res = await fetch('http://127.0.0.1:18521/api/system_info');
+        const res = await fetch(`${API_BASE_URL}/api/system_info`);
         if (res.ok) systemInfo.value = await res.json();
     } catch (e) { console.warn("Backend not ready for system info"); }
 };
@@ -236,7 +240,7 @@ const installGPUPack = async () => {
     
     gpuInstallStatus.value = 'loading';
     try {
-        const res = await fetch('http://127.0.0.1:18521/api/install_gpu_pack', { method: 'POST' });
+        const res = await fetch(`${API_BASE_URL}/api/install_gpu_pack`, { method: 'POST' });
         const data = await res.json();
         
         if (data.status === 'success') {
@@ -297,9 +301,7 @@ const startInference = async (cleanSchema) => {
   }, 400);
 
   try {
-    const isProd = import.meta.env.PROD;
-    const baseUrl = isProd ? 'http://127.0.0.1:18521' : 'http://127.0.0.1:18521';
-    const response = await fetch(`${baseUrl}/api/run_inference`, {
+    const response = await fetch(`${API_BASE_URL}/api/run_inference`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
