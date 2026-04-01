@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from model_factory import build_dynamic_pymc_model, run_mcmc_sampling
 from analyzer import extract_insights
 
-app = FastAPI(title="视频侦查效能评估 - 层次贝叶斯引擎")
+app = FastAPI(title="DeepBayes 层次贝叶斯推理引擎 - v1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -110,5 +110,22 @@ async def run_inference(req: InferenceRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"后端引擎推理失败: {str(e)}")
 
+@app.get("/api/system_info")
+async def get_system_info():
+    try:
+        import jax
+        devices = jax.devices()
+        device_types = [str(d.device_kind) for d in devices]
+        has_gpu = any("gpu" in d.lower() for d in device_types)
+        return {
+            "version": "1.0.0",
+            "jax_version": jax.__version__,
+            "devices": device_types,
+            "has_gpu": has_gpu,
+            "backend": "GPU" if has_gpu else "CPU"
+        }
+    except Exception as e:
+        return {"version": "1.0.0", "backend": "Unknown", "error": str(e)}
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=18521)

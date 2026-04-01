@@ -17,7 +17,7 @@
           <i class="fas fa-bolt mr-1.5"></i> 快速预览
         </span>
         <span class="px-2.5 py-1 rounded bg-indigo-900/60 border border-indigo-700/50 text-xs font-semibold text-neon-cyan flex items-center shadow-inner">
-          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> V2.0 Pro
+          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> v1.0.0 Stable
         </span>
       </div>
     </header>
@@ -69,6 +69,15 @@
         />
       </transition>
     </main>
+    
+    <!-- Acceleration Info Bar -->
+    <div v-if="systemInfo && !systemInfo.has_gpu" class="bg-amber-50 border-t border-amber-200 px-6 py-1.5 flex justify-between items-center text-[10px] text-amber-700">
+      <div class="flex items-center">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        检测到未开启 GPU 加速。当前运行于 CPU 模式，对于超大规模模型推演建议下载扩展资源包。
+      </div>
+      <button class="font-bold underline hover:text-amber-900">获取 GPU 增强补丁</button>
+    </div>
 
     <!-- Global Footer -->
     <footer class="bg-white border-t border-slate-200 py-2 px-6 flex justify-between items-center text-xs text-slate-500 z-40">
@@ -166,7 +175,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import DataImporter from './components/DataImporter.vue';
 import DataHealthCheck from './components/DataHealthCheck.vue';
 import VisualizationDashboard from './components/VisualizationDashboard.vue';
@@ -183,10 +192,22 @@ const currentSamplingMode = ref('fast');
 const currentCustomDraws = ref(500);
 const currentCustomTune = ref(300);
 const showHelpGuide = ref(false);
+const systemInfo = ref(null);
 
 const loadingProgress = ref(0);
 const loadingTips = ref([]);
 let progressInterval = null;
+
+const fetchSystemInfo = async () => {
+    try {
+        const res = await fetch('http://127.0.0.1:18521/api/system_info');
+        if (res.ok) systemInfo.value = await res.ok ? await res.json() : null;
+    } catch (e) { console.warn("Backend not ready for system info"); }
+};
+
+onMounted(() => {
+    fetchSystemInfo();
+});
 
 const openHealthCheck = (payload) => {
   rawTableData.value = payload.tableData;
@@ -229,7 +250,7 @@ const startInference = async (cleanSchema) => {
 
   try {
     const isProd = import.meta.env.PROD;
-    const baseUrl = isProd ? 'http://127.0.0.1:8000' : 'http://127.0.0.1:8000';
+    const baseUrl = isProd ? 'http://127.0.0.1:18521' : 'http://127.0.0.1:18521';
     const response = await fetch(`${baseUrl}/api/run_inference`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

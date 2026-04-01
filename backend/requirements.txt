@@ -7,4 +7,4 @@ pymc>=5.10.0
 arviz==0.16.1
 # 必须包含 numpyro 和 jax，以激活双路 RTX A6000 显卡的张量加速
 numpyro==0.13.0
-jax[cuda12]
+jax[cpu]
