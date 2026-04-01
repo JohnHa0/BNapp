@@ -280,6 +280,16 @@ const initializeData = () => {
     }
 };
 
+// Unified threshold calculation: use standard deviation of all deviations
+const computeThreshold = (perfData) => {
+    if (!perfData || perfData.length === 0) return 1.0;
+    const deviations = perfData.map(d => d.Deviation);
+    const mean = deviations.reduce((a, b) => a + b, 0) / deviations.length;
+    const variance = deviations.reduce((a, b) => a + (b - mean) ** 2, 0) / deviations.length;
+    const sd = Math.sqrt(variance);
+    return sd > 0.01 ? sd : 0.1;
+};
+
 const applyMetaChanges = () => {
   showMetaEditor.value = false;
   renderScatter(originalPerformanceData); // re-render with new legends
@@ -358,7 +368,11 @@ const renderGeo = (dataData = originalPerformanceData) => {
         const perfMatch = dataData.find(p => p.NodeName === searchName);
         
         const dev = perfMatch ? perfMatch.Deviation : 0;
-        const color = perfMatch ? (perfMatch.Status === 'Bright' ? '#10b981' : (perfMatch.Status === 'Dark' ? '#f43f5e' : '#4f46e5')) : '#94a3b8';
+        // Use same threshold logic as scatter chart for consistent coloring
+        const threshold = computeThreshold(dataData);
+        let color = '#4f46e5'; // default: indigo (neutral)
+        if (dev > threshold) color = '#10b981';       // Bright: emerald
+        else if (dev < -threshold) color = '#f43f5e';  // Dark: rose
         
         const lng = parseFloat(row[lngKey]);
         const lat = parseFloat(row[latKey]);
@@ -431,8 +445,7 @@ const renderGeo = (dataData = originalPerformanceData) => {
 // 2. Render Premium Scatter
 const renderScatter = (dataData) => {
   const parsedData = dataData.map(d => [d.Expected, d.Deviation, props.displayMapping[d.NodeName] || d.NodeName, d.Actual]);
-  const std_dev = Math.abs(parsedData[0] ? parsedData[0][1] : 1); // rough scaling
-  const threshold = std_dev > 0.01 ? std_dev : 1.0; 
+  const threshold = computeThreshold(dataData);
   
   charts.value.scatter.setOption({
     backgroundColor: 'transparent',
@@ -568,10 +581,11 @@ const updateWhatIf = () => {
        d.Expected = d.Expected + cumulativeShift; 
        // Deviation = Actual - Expected. If Expected rises, Deviation falls!
        d.Deviation = d.Actual - d.Expected;
-       
-       // Update logic for highlighting
-       const std_dev = Math.abs(originalPerformanceData[0] ? originalPerformanceData[0].Deviation : 1); 
-       const threshold = std_dev > 0.01 ? std_dev : 1.0; 
+    });
+    
+    // Update Status using unified threshold based on NEW data
+    const threshold = computeThreshold(newData);
+    newData.forEach(d => {
        if (d.Deviation > threshold) d.Status = 'Bright';
        else if (d.Deviation < -threshold) d.Status = 'Dark';
        else d.Status = 'Neutral';
