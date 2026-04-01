@@ -1,0 +1,22 @@
+{
+  "name": "hb-eval-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.1",
+    "echarts": "^5.6.0",
+    "vue": "^3.3.4"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.1",
+    "@vitejs/plugin-vue": "^4.2.3",
+    "tailwindcss": "^3.4.19",
+    "vite": "^4.4.5"
+  }
+}

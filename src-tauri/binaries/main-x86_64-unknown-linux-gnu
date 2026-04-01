@@ -1,0 +1,7 @@
+#!/bin/bash
+# Tauri Sidecar Stub
+# Activate conda and run the python backend
+export PATH="/home/junyao/miniconda3/bin:$PATH"
+eval "$(/home/junyao/miniconda3/bin/conda shell.bash hook)"
+conda activate bnapp-backend
+python /home/junyao/文档/Code/BNapp/backend/main.py "$@"
