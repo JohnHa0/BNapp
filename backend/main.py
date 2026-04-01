@@ -8,6 +8,7 @@ import time
 import sys
 import os
 import uvicorn
+import subprocess
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -126,6 +127,41 @@ async def get_system_info():
         }
     except Exception as e:
         return {"version": "1.0.0", "backend": "Unknown", "error": str(e)}
+
+@app.post("/api/install_gpu_pack")
+async def install_gpu_pack():
+    """
+    一键自动化安装 GPU 加速补丁 (JAX CUDA 支持)。
+    专门配置了国内清华大学 Tuna 镜像以适配中国地区宽带。
+    """
+    try:
+        # 使用当前 Python 解释器执行安装，确保环境正确
+        python_exe = sys.executable
+        # 指定清华源提升下载速度
+        mirror_url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+        
+        # 核心包：目前主流为 cuda12
+        cmd = [python_exe, "-m", "pip", "install", "jax[cuda12]", "-i", mirror_url]
+        
+        # 后台运行并捕捉关键过程 (这里使用 run 阻塞等待，前端通过 Loading 反馈)
+        process = subprocess.run(
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            timeout=1800 # 30 分钟超时针对 1GB+ 的巨型包
+        )
+        
+        if process.returncode == 0:
+            return {"status": "success", "message": "GPU 驱动强化补丁安装成功！请重启软件。"}
+        else:
+            return {
+                "status": "error", 
+                "message": f"安装失败: {process.stderr[-200:]}", # 返回末尾错误日志
+                "return_code": process.returncode
+            }
+            
+    except Exception as e:
+        return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=18521)

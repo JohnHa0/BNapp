@@ -76,7 +76,14 @@
         <i class="fas fa-exclamation-triangle mr-2"></i>
         检测到未开启 GPU 加速。当前运行于 CPU 模式，对于超大规模模型推演建议下载扩展资源包。
       </div>
-      <button class="font-bold underline hover:text-amber-900">获取 GPU 增强补丁</button>
+      <button 
+        @click="installGPUPack" 
+        :disabled="gpuInstallStatus === 'loading'"
+        class="font-bold underline hover:text-amber-900 flex items-center"
+      >
+        <i v-if="gpuInstallStatus === 'loading'" class="fas fa-spinner fa-spin mr-2"></i>
+        {{ gpuInstallStatus === 'loading' ? '正在安装国内强力资源包 (1GB+)...' : '获取 GPU 增强补丁' }}
+      </button>
     </div>
 
     <!-- Global Footer -->
@@ -171,6 +178,25 @@
         </div>
       </div>
     </transition>
+
+    <!-- GPU 安装中重型 Loading 遮罩 -->
+    <div v-if="gpuInstallStatus === 'loading'" class="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[100] flex flex-col justify-center items-center text-white p-12 text-center">
+       <div class="relative w-32 h-32 mb-10">
+         <div class="absolute inset-0 border-4 border-neon-cyan/20 rounded-full"></div>
+         <div class="absolute inset-0 border-t-4 border-neon-cyan rounded-full animate-spin"></div>
+         <div class="absolute inset-4 border-4 border-indigo-500/20 rounded-full animate-pulse" style="animation-duration: 3s"></div>
+         <i class="fas fa-microchip text-5xl text-neon-cyan absolute inset-0 flex items-center justify-center"></i>
+       </div>
+       <h2 class="text-3xl font-black mb-4 tracking-tight">正在部署 GPU 硬件加速补丁</h2>
+       <p class="max-w-md text-slate-400 text-sm leading-relaxed mb-8">
+         我们正在检测您的本地环境，并通过 <span class="text-white font-bold">清华大学镜像源 (Tsinghua Tuna)</span> 异步拉取 1GB+ 的张量核心计算组件。这能为您带来 10x 以上的推演提速。
+       </p>
+       <div class="flex items-center space-x-3 bg-white/5 px-4 py-2 rounded-full border border-white/10 text-xs font-mono">
+         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+         同步进度：正在执行 `pip install jax[cuda12]`...
+       </div>
+       <p class="mt-10 text-[10px] text-slate-500 uppercase tracking-widest">请勿断开网络或关闭软件进程。</p>
+    </div>
   </div>
 </template>
 
@@ -190,9 +216,9 @@ const inferenceResults = ref(null);
 const currentDisplayMapping = ref({});
 const currentSamplingMode = ref('fast');
 const currentCustomDraws = ref(500);
-const currentCustomTune = ref(300);
 const showHelpGuide = ref(false);
 const systemInfo = ref(null);
+const gpuInstallStatus = ref('idle'); // idle, loading, success, error
 
 const loadingProgress = ref(0);
 const loadingTips = ref([]);
@@ -201,8 +227,30 @@ let progressInterval = null;
 const fetchSystemInfo = async () => {
     try {
         const res = await fetch('http://127.0.0.1:18521/api/system_info');
-        if (res.ok) systemInfo.value = await res.ok ? await res.json() : null;
+        if (res.ok) systemInfo.value = await res.json();
     } catch (e) { console.warn("Backend not ready for system info"); }
+};
+
+const installGPUPack = async () => {
+    if(!confirm("准备下载约 1.2GB 的 GPU 加速组件？国内下载可能需要 2-5 分钟。")) return;
+    
+    gpuInstallStatus.value = 'loading';
+    try {
+        const res = await fetch('http://127.0.0.1:18521/api/install_gpu_pack', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            gpuInstallStatus.value = 'success';
+            alert("✅ GPU 增强驱动部署完成！\n\n为了使 CUDA 张量核心生效，请您立即手动重启 DeepBayes 软件。");
+            window.location.reload(); // 简易重载预览，实际在 Tauri 中应引导重启
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (e) {
+        gpuInstallStatus.value = 'error';
+        alert(`❌ 安装失败: ${e.message}\n请检查网络连接或尝试以管理员身份运行。`);
+        gpuInstallStatus.value = 'idle';
+    }
 };
 
 onMounted(() => {
