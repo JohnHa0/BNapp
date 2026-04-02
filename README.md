@@ -60,6 +60,10 @@ npm run dev
 ### Running the Backend
 
 ```bash
+
+cd backend && python main.py
+
+
 cd backend
 uvicorn main:app --reload
 ```

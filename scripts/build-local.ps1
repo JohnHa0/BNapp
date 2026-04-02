@@ -46,13 +46,16 @@ Write-Host ">>> [2/5] Building Python backend..." -ForegroundColor Cyan
 $UpxArgs = if (Test-Path $UpxExe) { "--upx-dir", $UpxDir } else { "" }
 
 $ExcludeModules = @(
-    "--exclude-module", "matplotlib",
     "--exclude-module", "tkinter",
     "--exclude-module", "IPython",
     "--exclude-module", "notebook",
     "--exclude-module", "jedi",
     "--exclude-module", "pygments",
-    "--exclude-module", "pytest"
+    "--exclude-module", "pytest",
+    "--exclude-module", "PIL",
+    "--exclude-module", "tornado",
+    "--exclude-module", "PyQt5",
+    "--exclude-module", "PyQt6"
 )
 
 $PyInstallerArgs = @(

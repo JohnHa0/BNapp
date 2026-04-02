@@ -1,3 +1,65 @@
+import warnings
+import os
+import sys
+import logging
+import logging.handlers
+
+# ─────────────────────── 日志系统初始化 ───────────────────────
+# 日志文件保存在 exe 同级的 logs/ 目录下，方便打包后排查问题
+def _setup_logging():
+    """初始化本地文件日志系统，同时输出到控制台和文件"""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        # 开发模式
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    log_dir = os.path.join(base_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "deepbayes_backend.log")
+
+    # 文件 Handler：RotatingFileHandler 防止日志无限膨胀（最大 5MB，保留 3 个备份）
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8"
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        "[%(asctime)s][%(name)s][%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    ))
+
+    # 控制台 Handler
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(logging.Formatter(
+        "[%(levelname)s] %(message)s"
+    ))
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+
+    return logging.getLogger("deepbayes")
+
+logger = _setup_logging()
+logger.info("=" * 60)
+logger.info("DeepBayes Backend 启动中...")
+logger.info(f"Python: {sys.version}")
+logger.info(f"Frozen: {getattr(sys, 'frozen', False)}")
+logger.info(f"Executable: {sys.executable}")
+logger.info("=" * 60)
+
+# ─────────────────────── 抑制无害警告 ───────────────────────
+# pytensor BLAS 告警（pip 安装时常见，不影响计算正确性，仅速度略慢）
+warnings.filterwarnings("ignore", message=".*PyTensor could not link to a BLAS.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="pytensor")
+os.environ.setdefault("PYTENSOR_FLAGS", "device=cpu,floatX=float64,optimizer=fast_compile")
+
+# matplotlib: 强制使用非交互式后端，避免打包后找不到 Tk/Qt
+os.environ.setdefault("MPLBACKEND", "Agg")
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -5,8 +67,6 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 import numpy as np
 import time
-import sys
-import os
 import uvicorn
 import subprocess
 import pathlib
@@ -61,7 +121,7 @@ def _patched_read_text(self, encoding=None, errors=None):
     return _original_read_text(self, encoding=encoding, errors=errors)
 pathlib.Path.read_text = _patched_read_text
 
-# [补丁] 拦截并修复 scipy >= 1.14 删除了 gaussian 导致 arviz 0.16.1 崩溃的问题
+# [补丁] 拦截并修复 scipy >= 1.14 删除了 gaussian 导致 arviz 崩溃的问题
 try:
     import scipy.signal
     import scipy.signal.windows
@@ -72,10 +132,16 @@ except Exception:
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from model_factory import build_dynamic_pymc_model, run_mcmc_sampling
-from analyzer import extract_insights
+logger.info("正在加载 PyMC / Arviz 核心模块...")
+try:
+    from model_factory import build_dynamic_pymc_model, run_mcmc_sampling
+    from analyzer import extract_insights
+    logger.info("核心模块加载成功！")
+except Exception as e:
+    logger.exception(f"核心模块加载失败: {e}")
+    raise
 
-app = FastAPI(title="DeepBayes 层次贝叶斯推理引擎 - v1.0.0")
+app = FastAPI(title="DeepBayes 层次贝叶斯推理引擎 - v1.0.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,8 +175,10 @@ import traceback
 @app.post("/api/run_inference")
 async def run_inference(req: InferenceRequest):
     output_grabber.clear()
+    logger.info(f"收到推理请求: project={req.project_name}, mode={req.sampling_mode}")
     try:
         df = pd.DataFrame(req.raw_data)
+        logger.info(f"数据集: {len(df)} 行, {len(df.columns)} 列")
         
         # 稳健的数据预处理：强制转换数值型并剔除含有空值的行
         id_cols = [l.id_column for l in req.hierarchy if l.id_column]
@@ -153,11 +221,15 @@ async def run_inference(req: InferenceRequest):
                 "X": X_matrix,
                 "cov_names": level.covariates
             }
-            
+        
+        logger.info("模型构建中...")
         model = build_dynamic_pymc_model(Y_obs, parsed_levels)
+        logger.info("MCMC 采样中...")
         trace = run_mcmc_sampling(model, req.sampling_mode, req.custom_draws, req.custom_tune)
+        logger.info("提取分析结果...")
         performance_data, summary_df, ppc_data, betas = extract_insights(trace, Y_obs, node_names)
         
+        logger.info("推理完成！")
         return {
             "status": "success", 
             "results": {
@@ -169,6 +241,7 @@ async def run_inference(req: InferenceRequest):
         }
         
     except Exception as e:
+        logger.exception(f"推理失败: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"后端引擎推理失败: {str(e)}")
 
@@ -183,6 +256,7 @@ async def get_system_info():
         devices = jax.devices()
         device_types = [str(d.device_kind) for d in devices]
         has_gpu = any("gpu" in d.lower() for d in device_types)
+        logger.info(f"系统信息: JAX {jax.__version__}, devices={device_types}")
         return {
             "version": "1.0.1",
             "jax_version": jax.__version__,
@@ -191,7 +265,8 @@ async def get_system_info():
             "backend": "GPU" if has_gpu else "CPU"
         }
     except Exception as e:
-        return {"version": "1.0.0", "backend": "Unknown", "error": str(e)}
+        logger.warning(f"JAX 检测失败 (正常，将使用 PyMC 原生采样): {e}")
+        return {"version": "1.0.1", "backend": "CPU (PyMC)", "error": str(e)}
 
 @app.post("/api/install_gpu_pack")
 async def install_gpu_pack():
@@ -208,7 +283,7 @@ async def install_gpu_pack():
         # 核心包：目前主流为 cuda12
         cmd = [python_exe, "-m", "pip", "install", "jax[cuda12]", "-i", mirror_url]
         
-        # 后台运行并捕捉关键过程 (这里使用 run 阻塞等待，前端通过 Loading 反馈)
+        logger.info(f"开始安装 GPU 补丁: {' '.join(cmd)}")
         process = subprocess.run(
             cmd, 
             capture_output=True, 
@@ -217,8 +292,10 @@ async def install_gpu_pack():
         )
         
         if process.returncode == 0:
+            logger.info("GPU 补丁安装成功！")
             return {"status": "success", "message": "GPU 驱动强化补丁安装成功！请重启软件。"}
         else:
+            logger.error(f"GPU 补丁安装失败: {process.stderr[-500:]}")
             return {
                 "status": "error", 
                 "message": f"安装失败: {process.stderr[-200:]}", # 返回末尾错误日志
@@ -226,9 +303,12 @@ async def install_gpu_pack():
             }
             
     except Exception as e:
+        logger.exception(f"GPU 安装异常: {e}")
         return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
 
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.freeze_support()
-    uvicorn.run(app, host="127.0.0.1", port=18521)
+    port = int(os.environ.get("DEEPBAYES_PORT", "18521"))
+    logger.info(f"启动 FastAPI 服务器 -> http://127.0.0.1:{port}")
+    uvicorn.run(app, host="127.0.0.1", port=port)

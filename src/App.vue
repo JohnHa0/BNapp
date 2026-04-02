@@ -92,8 +92,11 @@
         &copy; 2026 DeepBayes Advanced Analytics. All rights reserved @ZR.
       </div>
       <div class="flex space-x-6">
-        <span class="flex items-center"><i class="fas fa-server mr-1.5 text-emerald-500"></i> Backend: Connected</span>
-        <span class="flex items-center"><i class="fas fa-rocket mr-1.5 text-indigo-500"></i> JAX/Numpyro Engine: Active</span>
+        <span class="flex items-center">
+          <i :class="systemInfo ? 'text-emerald-500 fas fa-server' : 'text-slate-300 fas fa-sync fa-spin'" class="mr-1.5"></i> 
+          Backend: {{ systemInfo ? 'Connected' : 'Connecting...' }}
+        </span>
+        <span v-if="systemInfo" class="flex items-center"><i class="fas fa-rocket mr-1.5 text-indigo-500"></i> JAX Engine: {{ systemInfo.backend }}</span>
         <span class="flex items-center"><i class="fas fa-layer-group mr-1.5 text-blue-500"></i> Max MCMC Chains: 4</span>
       </div>
     </footer>
@@ -207,7 +210,7 @@ import DataHealthCheck from './components/DataHealthCheck.vue';
 import VisualizationDashboard from './components/VisualizationDashboard.vue';
 
 const isProd = import.meta.env.PROD;
-const API_BASE_URL = isProd ? 'http://127.0.0.1:18521' : 'http://127.0.0.1:8000';
+const API_BASE_URL = 'http://127.0.0.1:18521';
 
 const currentStep = ref('import');
 const showHealthCheckModal = ref(false);
@@ -232,8 +235,21 @@ let logPollInterval = null;
 const fetchSystemInfo = async () => {
     try {
         const res = await fetch(`${API_BASE_URL}/api/system_info`);
-        if (res.ok) systemInfo.value = await res.json();
-    } catch (e) { console.warn("Backend not ready for system info"); }
+        if (res.ok) {
+            systemInfo.value = await res.json();
+            return true;
+        }
+    } catch (e) { 
+        console.warn("Backend not ready yet, retrying..."); 
+    }
+    return false;
+};
+
+const pollSystemInfo = async () => {
+    const success = await fetchSystemInfo();
+    if (!success) {
+        setTimeout(pollSystemInfo, 2000); // 2秒重试一次直到后端拉起
+    }
 };
 
 const installGPUPack = async () => {
@@ -259,7 +275,7 @@ const installGPUPack = async () => {
 };
 
 onMounted(() => {
-    fetchSystemInfo();
+    pollSystemInfo();
 });
 
 const openHealthCheck = (payload) => {

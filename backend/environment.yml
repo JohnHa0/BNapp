@@ -8,13 +8,13 @@ dependencies:
   - jax
   - jaxlib
   - numpyro
+  - matplotlib
   - pip:
     - fastapi==0.104.1
     - uvicorn==0.24.0
     - pydantic==2.5.2
-    - pandas==2.1.3
-    - numpy==1.26.2
-    - pymc>=5.10.0
-    - arviz>=0.18.0
-    - numpyro==0.13.0
-    - jax[cuda12] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    - pandas>=2.0.0,<2.2.0
+    - numpy<2
+    - pymc>=5.10.0,<5.17.0
+    - arviz>=0.17.0,<0.20.0
+    - numpyro>=0.13.0,<0.16.0
