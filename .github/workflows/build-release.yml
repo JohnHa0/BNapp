@@ -12,9 +12,9 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            target: 'x86_64-apple-darwin'
+            target: 'aarch64-apple-darwin'
             os_name: 'macos'
-            binary_name: 'main-x86_64-apple-darwin'
+            binary_name: 'main-aarch64-apple-darwin'
           - platform: 'ubuntu-22.04'
             target: 'x86_64-unknown-linux-gnu'
             os_name: 'ubuntu'
@@ -65,7 +65,12 @@ jobs:
         run: |
           pyinstaller --onefile --name main backend/main.py
           mkdir -p src-tauri/binaries
-          mv dist/main* src-tauri/binaries/${{ matrix.binary_name }}
+          # 为 macOS 重命名时增加后缀，如果是 exe 则保留
+          if [[ "${{ matrix.os_name }}" == "windows" ]]; then
+            mv dist/main.exe src-tauri/binaries/${{ matrix.binary_name }}
+          else
+            mv dist/main src-tauri/binaries/${{ matrix.binary_name }}
+          fi
 
       - name: Install Frontend Dependencies
         shell: bash
