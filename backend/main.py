@@ -9,6 +9,15 @@ import sys
 import os
 import uvicorn
 import subprocess
+import pathlib
+
+# [补丁] 强制全局 pathlib.Path.read_text 默认使用 UTF-8，解决 Windows GBK 环境下第三方库（如 arviz）读取静态资源的崩溃问题
+_original_read_text = pathlib.Path.read_text
+def _patched_read_text(self, encoding=None, errors=None):
+    if encoding is None:
+        encoding = "utf-8"
+    return _original_read_text(self, encoding=encoding, errors=errors)
+pathlib.Path.read_text = _patched_read_text
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
