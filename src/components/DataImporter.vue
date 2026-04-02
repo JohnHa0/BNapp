@@ -284,6 +284,8 @@
 
 <script setup>
 import { ref } from 'vue';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
 
 const emit = defineEmits(['health-check']);
 
@@ -422,16 +424,21 @@ const parseCsvToState = (csvText) => {
 };
 
 // Tool: Download sample CSV
-const downloadSampleCSV = () => {
+const downloadSampleCSV = async () => {
     const csvContent = "省厅,分局,经度坐标,纬度坐标,警力投入X1,监控密度X2,打防转化率Y\n广东,天河,113.264,23.129,450,0.92,0.88\n广东,越秀,113.266,23.129,520,0.98,0.94\n广东,南山,113.930,22.533,310,0.85,0.79";
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "DeepBayes_Template.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    try {
+        const filePath = await save({
+            defaultPath: "DeepBayes_Template.csv",
+            filters: [{ name: 'CSV Document', extensions: ['csv'] }]
+        });
+        
+        if (filePath) {
+            await writeTextFile(filePath, csvContent);
+        }
+    } catch(e) {
+        console.error("下载模版失败:", e);
+    }
 };
 
 // Alias Rename actions

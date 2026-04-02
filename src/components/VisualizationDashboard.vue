@@ -153,6 +153,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, shallowRef, computed } from 'vue';
 import * as echarts from 'echarts';
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import worldGeoJson from '../assets/world.json';
 
 const props = defineProps({
@@ -602,19 +604,34 @@ const resetWhatIf = () => {
 };
 
 // --- EXPORT LOGIC ---
-const exportChart = (type) => {
+const exportChart = async (type) => {
     const chart = charts.value[type];
     if(chart) {
         const url = chart.getDataURL({ type: 'png', pixelRatio: 3, backgroundColor: type === 'scatter' ? '#0a192f' : '#fff' });
-        const a = document.createElement('a');
-        a.download = `DeepBayes_${type}_${Date.now()}.png`;
-        a.href = url;
-        a.click();
+        
+        try {
+            const filePath = await save({
+                defaultPath: `DeepBayes_${type}_${Date.now()}.png`,
+                filters: [{ name: 'PNG Image', extensions: ['png'] }]
+            });
+            
+            if (filePath) {
+                // Convert base64 data to Uint8Array
+                const base64Data = url.split(',')[1];
+                const binaryString = window.atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                await writeFile(filePath, bytes);
+            }
+        } catch(e) {
+            console.error("导出图表失败:", e);
+        }
     }
 };
 
-const exportCSV = () => {
-    // Convert originalPerformanceData to CSV string
+const exportCSV = async () => {
     const headers = ['NodeName', 'Actual_Value', 'Expected_μ', 'Deviation', 'Status_Flag'];
     const csvRows = [headers.join(',')];
     
@@ -628,14 +645,19 @@ const exportCSV = () => {
         ].join(','));
     });
     
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `DeepBayes_Report_${Date.now()}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+        const filePath = await save({
+            defaultPath: `DeepBayes_Report_${Date.now()}.csv`,
+            filters: [{ name: 'CSV Document', extensions: ['csv'] }]
+        });
+        
+        if (filePath) {
+            // Write to local disk with Tauri Native FS Write
+            await writeTextFile(filePath, csvRows.join('\n'));
+        }
+    } catch(e) {
+        console.error("导出数据表失败:", e);
+    }
 };
 
 </script>

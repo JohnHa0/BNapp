@@ -227,6 +227,7 @@ const gpuInstallStatus = ref('idle'); // idle, loading, success, error
 const loadingProgress = ref(0);
 const loadingTips = ref([]);
 let progressInterval = null;
+let logPollInterval = null;
 
 const fetchSystemInfo = async () => {
     try {
@@ -293,12 +294,31 @@ const startInference = async (cleanSchema) => {
        loadingTips.value[1].time = elapsed;
        loadingTips.value.push({ id: 3, time: '...', text: '启动 MCMC NUTS 并行马尔可夫链抽样 (耗时最长)...', status: 'loading' });
     }
-    if(loadingProgress.value > 65 && loadingTips.value.length === 3) {
-       loadingTips.value[2].status = 'done';
-       loadingTips.value[2].time = elapsed;
+    if(loadingProgress.value > 65 && !loadingTips.value.find(t => t.id === 4)) {
+       const lastLoader = loadingTips.value.find(t => t.status === 'loading');
+       if(lastLoader) { lastLoader.status = 'done'; lastLoader.time = elapsed; }
        loadingTips.value.push({ id: 4, time: '...', text: '核对 R_hat 收敛度并提取后验预测核密度 (PPC)...', status: 'loading' });
     }
   }, 400);
+
+  // 独立轮询真实后端日志流
+  logPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/logs`);
+      const data = await res.json();
+      if(data.log) {
+         // 防止日志过长刷屏，只找特定 ID 显示进度
+         const existingLog = loadingTips.value.find(t => t.id === 'backend_log');
+         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+         if(existingLog) {
+            existingLog.text = "> " + data.log;
+            existingLog.time = elapsed;
+         } else {
+            loadingTips.value.push({ id: 'backend_log', time: elapsed, text: "> " + data.log, status: 'loading' });
+         }
+      }
+    } catch(e) {}
+  }, 500);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/run_inference`, {
@@ -319,9 +339,13 @@ const startInference = async (cleanSchema) => {
     const data = await response.json();
     
     clearInterval(progressInterval);
+    clearInterval(logPollInterval);
     loadingProgress.value = 100;
-    loadingTips.value[loadingTips.value.length-1].status = 'done';
-    loadingTips.value[loadingTips.value.length-1].time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    const lastLoader = loadingTips.value.find(t => t.status === 'loading');
+    if(lastLoader) {
+        lastLoader.status = 'done';
+        lastLoader.time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    }
     loadingTips.value.push({ id: 5, time: '完成', text: '参数矩阵装填完毕，即将开启全息控制台！', status: 'done' });
     
     setTimeout(() => {
@@ -332,6 +356,8 @@ const startInference = async (cleanSchema) => {
 
   } catch (error) {
     console.error(error);
+    clearInterval(progressInterval);
+    clearInterval(logPollInterval);
     alert("推理失败，请检查后端 FastAPI 服务是否启动或数据格式是否存在严重错误。");
     currentStep.value = 'import';
   }

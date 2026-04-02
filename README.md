@@ -34,9 +34,20 @@ conda env create bnapp -f backend/environment.yml
 conda activate bnapp-backend
 ```
 
-### 3. Rust (Tauri)
+### 3. Rust (Tauri v2)
+Ensure you have Rust installed. This project uses **Tauri v2**.
+```bash
+# Add necessary plugins if not present
+# npm run tauri plugin add dialog fs shell
+```
 
-Ensure you have Rust installed and configured for Tauri development. See the [Tauri documentation](https://tauri.app/v1/guides/getting-started/prerequisites) for more details.
+## Performance Optimization (Crucial)
+If you see a `BLAS installation` warning in the backend logs, it means the math engine is running in slow-motion.
+To fix this and get a **10x speed boost**, ensure JAX is synchronized:
+```bash
+conda activate bnapp-backend
+pip install --upgrade jax jaxlib numpyro
+```
 
 ## Development
 
@@ -71,6 +82,8 @@ npm run tauri dev
 - **Fast / Accurate Sampling**: Built-in toggle to switch between 500/300 (fast preview) and 1500/1000 (accurate precision) NUTS sampling modes. Customizable parameter injection available.
 - **GIS Map View**: Built-in scatter and rippling effect maps for geographical analytics (Lat/Lng support).
 - **Domain Scenarios**: Comes with 4 domain-specific sandbox presets, including a complex 4-tier geopolitical conflict map.
+- **Native OS Integration**: Uses Tauri v2 Native Dialogs for a premium file saving experience (CSV/PNG).
+- **Real-time Engine Logs**: Frontend control-center streams live MCMC sampling progress directly from the Python sub-process.
 
 ## 推送更新
 git tag -d v1.0.0

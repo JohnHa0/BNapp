@@ -11,6 +11,48 @@ import uvicorn
 import subprocess
 import pathlib
 
+# [进度条捕获钩子] 拦截 PyMC/tqdm 的输出，提取最新的一行进度
+class OutputGrabber:
+    def __init__(self):
+        self.lines = []
+        self.current_line = ""
+        self.original_stderr = sys.stderr
+        self.original_stdout = sys.stdout
+
+    def write(self, text):
+        self.original_stderr.write(text)
+        for char in text:
+            if char == '\r':
+                self.current_line = "" # 回车时覆盖当前行（tqdm 动画原理）
+            elif char == '\n':
+                if self.current_line.strip():
+                    self.lines.append(self.current_line)
+                self.current_line = ""
+            else:
+                self.current_line += char
+        if len(self.lines) > 50:
+             self.lines = self.lines[-50:]
+
+    def flush(self):
+        self.original_stderr.flush()
+        self.original_stdout.flush()
+
+    def get_latest(self):
+        if self.current_line.strip():
+            return self.current_line.strip()
+        if self.lines:
+            return self.lines[-1].strip()
+        return ""
+    
+    def clear(self):
+        self.lines = []
+        self.current_line = ""
+
+output_grabber = OutputGrabber()
+sys.stderr = output_grabber
+sys.stdout = output_grabber
+
+
 # [补丁] 强制全局 pathlib.Path.read_text 默认使用 UTF-8，解决 Windows GBK 编码崩溃
 _original_read_text = pathlib.Path.read_text
 def _patched_read_text(self, encoding=None, errors=None):
@@ -66,6 +108,7 @@ import traceback
 
 @app.post("/api/run_inference")
 async def run_inference(req: InferenceRequest):
+    output_grabber.clear()
     try:
         df = pd.DataFrame(req.raw_data)
         
@@ -128,6 +171,10 @@ async def run_inference(req: InferenceRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"后端引擎推理失败: {str(e)}")
+
+@app.get("/api/logs")
+async def get_logs():
+    return {"log": output_grabber.get_latest()}
 
 @app.get("/api/system_info")
 async def get_system_info():

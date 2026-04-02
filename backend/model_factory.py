@@ -41,6 +41,25 @@ def run_mcmc_sampling(model, sampling_mode="fast", custom_draws=None, custom_tun
         else:
             draws, tune = 1500, 1000
             
-        trace = pm.sample(draws=draws, tune=tune, target_accept=0.9, return_inferencedata=True, cores=1, progressbar=True)
+        # 尝试使用 JAX (Numpyro) 加速采样，如果不可用或版本冲突则回退到标准 NUTS
+        # 捕捉 Exception 而非 ImportError，因为 JAX 版本不匹配（如 jaxlib > jax）会抛出 RuntimeError
+        try:
+            import numpyro
+            import jax
+            # 验证 jax 能够正常工作，防止版本不一致导致的初始化失败
+            _ = jax.devices()
+            nuts_sampler = "numpyro"
+        except Exception:
+            nuts_sampler = "pymc"
+
+        trace = pm.sample(
+            draws=draws, 
+            tune=tune, 
+            target_accept=0.9, 
+            return_inferencedata=True, 
+            cores=1, 
+            progressbar=True,
+            nuts_sampler=nuts_sampler
+        )
         pm.sample_posterior_predictive(trace, extend_inferencedata=True, progressbar=True)
     return trace

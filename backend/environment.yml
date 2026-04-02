@@ -5,6 +5,9 @@ channels:
 dependencies:
   - python=3.10
   - pip
+  - jax
+  - jaxlib
+  - numpyro
   - pip:
     - fastapi==0.104.1
     - uvicorn==0.24.0
