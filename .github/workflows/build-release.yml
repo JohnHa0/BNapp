@@ -67,7 +67,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         shell: bash
-        run: npm ci
+        run: npm install
 
       - name: Build and Release Tauri App
         uses: tauri-apps/tauri-action@v0
