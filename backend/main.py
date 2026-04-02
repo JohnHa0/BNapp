@@ -184,7 +184,7 @@ async def get_system_info():
         device_types = [str(d.device_kind) for d in devices]
         has_gpu = any("gpu" in d.lower() for d in device_types)
         return {
-            "version": "1.0.0",
+            "version": "1.0.1",
             "jax_version": jax.__version__,
             "devices": device_types,
             "has_gpu": has_gpu,
