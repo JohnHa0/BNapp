@@ -41,6 +41,6 @@ def run_mcmc_sampling(model, sampling_mode="fast", custom_draws=None, custom_tun
         else:
             draws, tune = 1500, 1000
             
-        trace = pm.sample(draws=draws, tune=tune, target_accept=0.9, return_inferencedata=True)
-        pm.sample_posterior_predictive(trace, extend_inferencedata=True)
+        trace = pm.sample(draws=draws, tune=tune, target_accept=0.9, return_inferencedata=True, cores=1, progressbar=True)
+        pm.sample_posterior_predictive(trace, extend_inferencedata=True, progressbar=True)
     return trace

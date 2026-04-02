@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full bg-ice-white p-6 pb-20">
+  <div class="h-full bg-ice-white p-6 pb-20" @dragover.prevent="onRootDragOver" @drop.prevent>
     <div class="max-w-7xl mx-auto space-y-6">
       <!-- Header Options -->
       <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
@@ -40,7 +40,8 @@
           
           <div 
             class="p-4 min-h-[500px] max-h-[700px] overflow-y-auto space-y-3 bg-white"
-            @dragover.prevent
+            @dragover="onDragOver"
+            @dragenter.prevent
             @drop="onDropUnassigned"
           >
             <!-- Draggable items -->
@@ -133,7 +134,8 @@
             <div 
               class="w-full min-h-[60px] border-2 border-dashed rounded-lg flex items-center justify-center p-2 transition-colors"
               :class="targetVariable ? 'border-amber-300 bg-white/60' : 'border-amber-300/50 bg-amber-100/30 hover:bg-amber-100/50'"
-              @dragover.prevent
+              @dragover="onDragOver"
+              @dragenter.prevent
               @drop="onDropTarget"
             >
               <div v-if="targetVariable" 
@@ -175,7 +177,8 @@
                   <div 
                     class="min-h-[44px] border-2 border-dashed border-slate-300 rounded-md flex flex-wrap gap-2 p-1 items-center justify-center"
                     :class="{'bg-white': level.id_column}"
-                    @dragover.prevent
+                    @dragover="onDragOver"
+                    @dragenter.prevent
                     @drop="onDropId($event, index)"
                   >
                     <div v-if="level.id_column" 
@@ -196,7 +199,8 @@
                   <div 
                     class="min-h-[44px] border-2 border-dashed border-slate-300 rounded-md flex flex-wrap gap-2 p-2 items-start"
                     :class="{'bg-white': level.covariates.length > 0}"
-                    @dragover.prevent
+                    @dragover="onDragOver"
+                    @dragenter.prevent
                     @drop="onDropCovariate($event, index)"
                   >
                     <div v-for="(cov, covIndex) in level.covariates" :key="cov.id" 
@@ -467,6 +471,20 @@ const onDragStart = (e, item, sourceType, levelIndex, covIndex) => {
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', item.id); // Safari/Chrome requires setData to not cancel drag
   e.currentTarget.classList.add('opacity-50');
+};
+
+const onDragOver = (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+};
+
+const onRootDragOver = (e) => {
+  e.preventDefault();
+  if (e.dataTransfer.types.includes('text/plain')) {
+    e.dataTransfer.dropEffect = 'move';
+  } else {
+    e.dataTransfer.dropEffect = 'none';
+  }
 };
 
 const removeDraggedFromSource = () => {

@@ -182,4 +182,6 @@ async def install_gpu_pack():
         return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
 
 if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
     uvicorn.run(app, host="127.0.0.1", port=18521)
