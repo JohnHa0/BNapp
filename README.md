@@ -71,3 +71,9 @@ npm run tauri dev
 - **Fast / Accurate Sampling**: Built-in toggle to switch between 500/300 (fast preview) and 1500/1000 (accurate precision) NUTS sampling modes. Customizable parameter injection available.
 - **GIS Map View**: Built-in scatter and rippling effect maps for geographical analytics (Lat/Lng support).
 - **Domain Scenarios**: Comes with 4 domain-specific sandbox presets, including a complex 4-tier geopolitical conflict map.
+
+## 推送更新
+git tag -d v1.0.0
+git push origin :refs/tags/v1.0.0
+git tag v1.0.0
+git push origin v1.0.0
