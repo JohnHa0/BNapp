@@ -11,13 +11,22 @@ import uvicorn
 import subprocess
 import pathlib
 
-# [补丁] 强制全局 pathlib.Path.read_text 默认使用 UTF-8，解决 Windows GBK 环境下第三方库（如 arviz）读取静态资源的崩溃问题
+# [补丁] 强制全局 pathlib.Path.read_text 默认使用 UTF-8，解决 Windows GBK 编码崩溃
 _original_read_text = pathlib.Path.read_text
 def _patched_read_text(self, encoding=None, errors=None):
     if encoding is None:
         encoding = "utf-8"
     return _original_read_text(self, encoding=encoding, errors=errors)
 pathlib.Path.read_text = _patched_read_text
+
+# [补丁] 拦截并修复 scipy >= 1.14 删除了 gaussian 导致 arviz 0.16.1 崩溃的问题
+try:
+    import scipy.signal
+    import scipy.signal.windows
+    if not hasattr(scipy.signal, 'gaussian'):
+        scipy.signal.gaussian = scipy.signal.windows.gaussian
+except Exception:
+    pass
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

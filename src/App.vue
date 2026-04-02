@@ -17,7 +17,7 @@
           <i class="fas fa-bolt mr-1.5"></i> 快速预览
         </span>
         <span class="px-2.5 py-1 rounded bg-indigo-900/60 border border-indigo-700/50 text-xs font-semibold text-neon-cyan flex items-center shadow-inner">
-          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> v1.0.0 Stable
+          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> v1.0.0 Pro
         </span>
       </div>
     </header>
@@ -89,7 +89,7 @@
     <!-- Global Footer -->
     <footer class="bg-white border-t border-slate-200 py-2 px-6 flex justify-between items-center text-xs text-slate-500 z-40">
       <div>
-        &copy; 2026 DeepBayes Advanced Analytics. All rights reserved.
+        &copy; 2026 DeepBayes Advanced Analytics. All rights reserved @ZR.
       </div>
       <div class="flex space-x-6">
         <span class="flex items-center"><i class="fas fa-server mr-1.5 text-emerald-500"></i> Backend: Connected</span>
