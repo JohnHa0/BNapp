@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 # 收集运行时需要的静态数据文件
 # - arviz: HTML 模板、CSS、图标
@@ -10,6 +10,16 @@ datas = []
 datas += collect_data_files('arviz')
 datas += collect_data_files('matplotlib')
 datas += collect_data_files('pytensor')
+
+# pytensor -> cons -> unification 依赖链在运行时通过 importlib.metadata
+# 查询包版本，必须手动收集这些包的 dist-info 元数据
+datas += copy_metadata('logical-unification')
+datas += copy_metadata('cons')
+datas += copy_metadata('etuples')
+datas += copy_metadata('miniKanren')
+datas += copy_metadata('pytensor')
+datas += copy_metadata('pymc')
+datas += copy_metadata('arviz')
 
 a = Analysis(
     ['backend\\main.py'],
