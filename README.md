@@ -74,6 +74,27 @@ uvicorn main:app --reload
 npm run tauri dev
 ```
 
+
+### 后端打包
+
+```bash
+cd backend
+python -m PyInstaller main.spec
+```
+
+```bash
+
+conda activate bnapp-backend && cd c:\Users\junya\Qsync\Code\BN && pyinstaller main.spec --distpath dist --workpath build/pyinstaller --noconfirm
+```
+
+拷贝后端文件
+
+```bash
+
+# pyinstaller main.spec --noconfirm
+copy /Y dist\main.exe src-tauri\binaries\main-x86_64-pc-windows-msvc.exe
+
+```
 ## Project Structure
 
 - `src/`: Frontend Vue.js source code (incl. DataImporter & VisualizationDashboard).
@@ -90,10 +111,10 @@ npm run tauri dev
 - **Real-time Engine Logs**: Frontend control-center streams live MCMC sampling progress directly from the Python sub-process.
 
 ## 推送更新
-git tag -d v1.0.0
-git push origin :refs/tags/v1.0.0
-git tag v1.0.0
-git push origin v1.0.0
+git tag -d v1.0.1
+git push origin :refs/tags/v1.0.1
+git tag v1.0.1
+git push origin v1.0.1
 ## 本地打包
 - 初始化 PowerShell 扩展：conda init powershell，重启终端以生效
 - 激活环境：conda activate bnapp-backend
@@ -122,3 +143,19 @@ git push -u origin main:master
 # 2. 修改 Git 默认推送规则 (告知 Git：以后 push 就认准刚才绑定的上游)
 git config push.default upstream
 配置完之后，以后您在 main 目录下直接输入 git push，Git 就会自动把它投递到云端的 master 上。
+
+### 后端kill
+# 杀掉残留后端进程
+Get-Process -Name "main" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# 同时杀掉可能锁住文件的 hb-eval-system 进程
+Get-Process -Name "hb-eval-system" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# 确认端口已释放
+netstat -ano | findstr 18521
+
+# 杀掉所有main进程
+Get-Process -Name "main" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# 杀掉所有hb-eval-system进程
+Get-Process -Name "hb-eval-system" -ErrorAction SilentlyContinue | Stop-Process -Force

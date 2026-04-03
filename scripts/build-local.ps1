@@ -36,34 +36,18 @@ if (-not (Test-Path $UpxExe)) {
         Write-Host ">>> Extract 'upx.exe' into $UpxDir, then run this script again."
         Write-Host ">>> Continuing without UPX support, the output size will be large..." -ForegroundColor Yellow
     }
-} else {
+}
+else {
     Write-Host ">>> [1/5] UPX detected." -ForegroundColor Green
 }
 
-# 2. PyInstaller build
-Write-Host ">>> [2/5] Building Python backend..." -ForegroundColor Cyan
+# 2. PyInstaller build (所有配置集中在 main.spec 中)
+Write-Host ">>> [2/5] Building Python backend via main.spec..." -ForegroundColor Cyan
 
-$UpxArgs = if (Test-Path $UpxExe) { "--upx-dir", $UpxDir } else { "" }
+$UpxArgs = @()
+if (Test-Path $UpxExe) { $UpxArgs = @("--upx-dir", $UpxDir) }
 
-$ExcludeModules = @(
-    "--exclude-module", "tkinter",
-    "--exclude-module", "IPython",
-    "--exclude-module", "notebook",
-    "--exclude-module", "jedi",
-    "--exclude-module", "pygments",
-    "--exclude-module", "pytest",
-    "--exclude-module", "PIL",
-    "--exclude-module", "tornado",
-    "--exclude-module", "PyQt5",
-    "--exclude-module", "PyQt6"
-)
-
-$PyInstallerArgs = @(
-    "--onefile",
-    "--name", "main"
-) + $UpxArgs + $ExcludeModules + @("backend/main.py")
-
-& pyinstaller $PyInstallerArgs
+& pyinstaller main.spec --noconfirm @UpxArgs
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host ">>> [Error] PyInstaller failed." -ForegroundColor Red

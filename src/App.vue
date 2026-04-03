@@ -23,6 +23,26 @@
     </header>
 
     <!-- Main Content Area with Transition -->
+    <!-- 后端引擎初始化遮罩 -->
+    <transition name="fade">
+      <div v-if="!backendReady" class="fixed inset-0 bg-gradient-to-br from-[#0a192f] via-[#112240] to-[#0a192f] z-[200] flex flex-col justify-center items-center">
+        <div class="relative w-20 h-20 mb-8">
+          <div class="absolute inset-0 rounded-full border-2 border-neon-cyan/20"></div>
+          <div class="absolute inset-0 rounded-full border-t-2 border-neon-cyan animate-spin"></div>
+          <div class="absolute inset-3 rounded-full border-b-2 border-indigo-400 animate-spin" style="animation-direction:reverse;animation-duration:1.8s"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <i class="fas fa-atom text-2xl text-neon-cyan animate-pulse"></i>
+          </div>
+        </div>
+        <h2 class="text-xl font-bold text-white mb-3 tracking-wide">推理引擎预热中</h2>
+        <p class="text-sm text-slate-400 mb-6 max-w-sm text-center leading-relaxed">正在启动 PyMC 贝叶斯核心与概率张量图编译器，首次加载约需 5-10 秒...</p>
+        <div class="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-full border border-white/10">
+          <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse"></span>
+          <span class="text-xs font-mono text-slate-300">Initializing FastAPI Backend Engine...</span>
+        </div>
+      </div>
+    </transition>
+
     <main class="flex-1 overflow-auto relative">
       <transition name="fade-slide" mode="out-in">
         <DataImporter v-if="currentStep === 'import'" @health-check="openHealthCheck" />
@@ -214,6 +234,7 @@ const API_BASE_URL = 'http://127.0.0.1:18521';
 
 const currentStep = ref('import');
 const showHealthCheckModal = ref(false);
+const backendReady = ref(false);  // 后端是否已就绪
 
 const rawTableData = ref([]);
 const currentHierarchy = ref([]);
@@ -232,6 +253,15 @@ const loadingTips = ref([]);
 let progressInterval = null;
 let logPollInterval = null;
 
+// 轻量级健康检查：仅检测后端是否可访问
+const checkBackendHealth = async () => {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/health`, { signal: AbortSignal.timeout(2000) });
+        if (res.ok) return true;
+    } catch (e) { /* 后端尚未就绪 */ }
+    return false;
+};
+
 const fetchSystemInfo = async () => {
     try {
         const res = await fetch(`${API_BASE_URL}/api/system_info`);
@@ -245,11 +275,22 @@ const fetchSystemInfo = async () => {
     return false;
 };
 
-const pollSystemInfo = async () => {
-    const success = await fetchSystemInfo();
-    if (!success) {
-        setTimeout(pollSystemInfo, 2000); // 2秒重试一次直到后端拉起
+// 启动时先等待后端就绪，再获取系统信息
+const waitForBackend = async () => {
+    const maxRetries = 40;  // 最多等 60 秒 (40 * 1.5s)
+    for (let i = 0; i < maxRetries; i++) {
+        const healthy = await checkBackendHealth();
+        if (healthy) {
+            backendReady.value = true;
+            // 后端就绪后再获取详细系统信息（非阻塞）
+            fetchSystemInfo();
+            return;
+        }
+        await new Promise(r => setTimeout(r, 1500));
     }
+    // 超时后仍然放行，让用户看到界面
+    backendReady.value = true;
+    console.error("Backend health check timed out after 60s");
 };
 
 const installGPUPack = async () => {
@@ -275,7 +316,7 @@ const installGPUPack = async () => {
 };
 
 onMounted(() => {
-    pollSystemInfo();
+    waitForBackend();
 });
 
 const openHealthCheck = (payload) => {

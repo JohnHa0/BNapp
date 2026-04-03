@@ -108,6 +108,16 @@ class OutputGrabber:
         self.lines = []
         self.current_line = ""
 
+    def isatty(self):
+        return False
+
+    def fileno(self):
+        return self.original_stderr.fileno()
+
+    @property
+    def encoding(self):
+        return self.original_stderr.encoding
+
 output_grabber = OutputGrabber()
 sys.stderr = output_grabber
 sys.stdout = output_grabber
@@ -150,6 +160,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/api/health")
+async def health_check():
+    """轻量健康检查端点，前端用来判断后端是否已就绪"""
+    return {"status": "ok"}
 
 class SchemaLevel(BaseModel):
     level_index: int
@@ -306,9 +321,65 @@ async def install_gpu_pack():
         logger.exception(f"GPU 安装异常: {e}")
         return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
 
+def _kill_process_on_port(port: int):
+    """在 Windows 上查找并杀死占用指定端口的进程，防止 Errno 10048"""
+    try:
+        import socket
+        # 先快速检测端口是否真的被占用
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1)
+            result = s.connect_ex(('127.0.0.1', port))
+            if result != 0:
+                # 端口空闲，无需处理
+                return
+        
+        logger.warning(f"端口 {port} 已被占用，正在尝试释放...")
+        
+        # 使用 netstat 找到占用端口的 PID
+        result = subprocess.run(
+            ['netstat', '-ano'],
+            capture_output=True, text=True, timeout=10
+        )
+        
+        target_pids = set()
+        for line in result.stdout.splitlines():
+            # 匹配 LISTENING 状态的 127.0.0.1:port
+            if f'127.0.0.1:{port}' in line and 'LISTENING' in line:
+                parts = line.strip().split()
+                if parts:
+                    try:
+                        pid = int(parts[-1])
+                        if pid != os.getpid():  # 不要杀死自己
+                            target_pids.add(pid)
+                    except ValueError:
+                        pass
+        
+        for pid in target_pids:
+            logger.info(f"正在终止占用端口的进程 PID={pid}")
+            try:
+                subprocess.run(
+                    ['taskkill', '/F', '/PID', str(pid)],
+                    capture_output=True, timeout=10
+                )
+            except Exception as e:
+                logger.warning(f"终止进程 {pid} 失败: {e}")
+        
+        if target_pids:
+            import time as _time
+            _time.sleep(1)  # 等待端口释放
+            logger.info(f"端口 {port} 清理完成")
+            
+    except Exception as e:
+        logger.warning(f"端口清理过程出错（将继续尝试启动）: {e}")
+
+
 if __name__ == "__main__":
     import multiprocessing
     multiprocessing.freeze_support()
     port = int(os.environ.get("DEEPBAYES_PORT", "18521"))
+    
+    # 启动前清理：杀死之前残留的后端进程
+    _kill_process_on_port(port)
+    
     logger.info(f"启动 FastAPI 服务器 -> http://127.0.0.1:{port}")
     uvicorn.run(app, host="127.0.0.1", port=port)
