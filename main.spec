@@ -3,9 +3,6 @@
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 # 收集运行时需要的静态数据文件
-# - arviz: HTML 模板、CSS、图标
-# - matplotlib: 字体、配色方案
-# - pytensor: C 源码文件（运行时编译张量运算节点）
 datas = []
 datas += collect_data_files('arviz')
 datas += collect_data_files('matplotlib')
@@ -21,12 +18,21 @@ datas += copy_metadata('pytensor')
 datas += copy_metadata('pymc')
 datas += copy_metadata('arviz')
 
+# 确保 pip 被打包进来，供 GPU 在线安装使用
+hiddenimports = [
+    'pip',
+    'pip._internal',
+    'pip._internal.cli',
+    'pip._internal.cli.main',
+    'pip._vendor',
+]
+
 a = Analysis(
     ['backend\\main.py'],
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=[],
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -36,23 +42,32 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+# --onedir 模式：exe 只包含启动器，依赖文件由 COLLECT 收集到 _internal/
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,   # ← 关键：不把 binaries/datas 塞进 exe
     name='main',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+# COLLECT：将所有依赖收集到 dist-backend/main/ 目录（避免与 Vite 的 dist/ 冲突）
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='main',
 )

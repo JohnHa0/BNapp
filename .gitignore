@@ -5,9 +5,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Vite/Build
+# Vite / Frontend Build
 dist/
 dist-ssr/
+dist-backend/
 *.local
 
 # Python
@@ -27,8 +28,18 @@ env/
 .conda/
 .python-version
 
+# PyInstaller (打包产物)
+build/
+_internal/
+*.manifest
+warn-*.txt
+
 # Tauri
 src-tauri/target/
+src-tauri/binaries/
+
+# UPX 压缩工具
+scripts/upx/
 
 # IDE / Editor
 .vscode/

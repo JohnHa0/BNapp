@@ -3,8 +3,8 @@
   "version": "1.0.1",
   "identifier": "com.hb-eval.system",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run tauri:prepare && npm run dev",
+    "beforeBuildCommand": "npm run tauri:prepare && npm run build",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },
@@ -36,6 +36,9 @@
     ],
     "externalBin": [
       "binaries/main"
-    ]
+    ],
+    "resources": {
+      "binaries/_internal/": "bin/_internal/"
+    }
   }
 }

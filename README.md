@@ -77,6 +77,7 @@ npm run tauri dev
 
 ### 后端打包
 
+- 单文件模式
 ```bash
 cd backend
 python -m PyInstaller main.spec
@@ -95,6 +96,41 @@ conda activate bnapp-backend && cd c:\Users\junya\Qsync\Code\BN && pyinstaller m
 copy /Y dist\main.exe src-tauri\binaries\main-x86_64-pc-windows-msvc.exe
 
 ```
+
+- 文件模式
+
+```bash
+### 后端打包 (onedir 模式/非单文件)
+
+本项目后端现已切换至 PyInstaller 的 `--onedir` 模式以提高加载速度。
+
+**手动调试与部署步骤：**
+1.  **生成后端：** 在 `backend` 目录下通过 PyInstaller 生成（通常使用项目根目录下的 `main.spec`）：
+    `pyinstaller main.spec --distpath dist-backend --noconfirm`
+2.  **准备 Sidecar：**
+    -   将 `dist-backend/main/main.exe` 复制并重命名为 `src-tauri/binaries/main-x86_64-pc-windows-msvc.exe`。
+    -   将整个 `dist-backend/main/_internal` 目录复制到 `src-tauri/binaries/_internal`。
+3.  **开发模式与依赖同步：**
+    -   直接运行 `npm run tauri dev`。
+    -   **自动化同步：** 我们通过 `src-tauri/build.rs` 实现了自动化。每次在开发模式下启动或编译时，Rust 构建脚本会自动将 `binaries/_internal` 同步到 `target/debug` 目录，解决 Python DLL 无法加载的问题。
+    -   如果 `_internal` 目录尚未生成（即尚未打包过后端），`tauri:prepare` 脚本会创建一个占位符以确保编译通过。
+
+### 打包脚本 (自动化)
+
+项目根目录下的 `.\scripts\build-local.ps1` 已配置为处理 `onedir` 模式的所有细节：
+1.  **后端打包**：调用 PyInstaller 并使用 UPX 压缩。
+2.  **Sidecar 设置**：自动重命名 `.exe` 并将 `_internal` 文件夹同步到 `src-tauri/binaries`。
+3.  **应用打包**：调用 `tauri build` 生成 NSIS 安装包。
+4.  **资源映射**：通过 `tauri.conf.json` 的 `resources` 配置，确保 `_internal` 被打包进安装包的 `bin/` 目录。
+
+如果遇到端口占用或文件锁定，请在 PowerShell 中执行：
+```powershell
+# 杀掉残留后端进程及 Tauri 主进程
+Get-Process -Name "main", "hb-eval-system" -ErrorAction SilentlyContinue | Stop-Process -Force
+# 检查端口占用（默认 18521）
+netstat -ano | findstr 18521
+```
+
 ## Project Structure
 
 - `src/`: Frontend Vue.js source code (incl. DataImporter & VisualizationDashboard).
@@ -143,6 +179,7 @@ git push -u origin main:master
 # 2. 修改 Git 默认推送规则 (告知 Git：以后 push 就认准刚才绑定的上游)
 git config push.default upstream
 配置完之后，以后您在 main 目录下直接输入 git push，Git 就会自动把它投递到云端的 master 上。
+
 
 ### 后端kill
 # 杀掉残留后端进程

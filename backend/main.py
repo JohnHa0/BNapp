@@ -44,6 +44,39 @@ def _setup_logging():
     return logging.getLogger("deepbayes")
 
 logger = _setup_logging()
+
+# ─────────────────────── 日志自动清理 ───────────────────────
+def _cleanup_old_logs(max_age_days=7):
+    """清理超过 max_age_days 天的旧日志文件"""
+    import glob
+    import time as _time
+    
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    log_dir = os.path.join(base_dir, "logs")
+    if not os.path.exists(log_dir):
+        return
+    
+    now = _time.time()
+    cutoff = now - (max_age_days * 86400)  # 86400 = 24*60*60
+    cleaned = 0
+    
+    for f in glob.glob(os.path.join(log_dir, "*.log*")):
+        try:
+            if os.path.getmtime(f) < cutoff:
+                os.remove(f)
+                cleaned += 1
+        except Exception:
+            pass
+    
+    if cleaned > 0:
+        logger.info(f"已清理 {cleaned} 个超过 {max_age_days} 天的旧日志文件")
+
+_cleanup_old_logs()
+
 logger.info("=" * 60)
 logger.info("DeepBayes Backend 启动中...")
 logger.info(f"Python: {sys.version}")
@@ -287,55 +320,103 @@ async def get_system_info():
 async def install_gpu_pack():
     """
     一键自动化安装 GPU 加速补丁 (JAX CUDA 支持)。
-    专门配置了国内清华大学 Tuna 镜像以适配中国地区宽带。
+    onedir 打包模式下使用内嵌的 pip 直接安装到 _internal/ 目录。
     """
-    try:
-        # 使用当前 Python 解释器执行安装，确保环境正确
-        python_exe = sys.executable
-        # 指定清华源提升下载速度
-        mirror_url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-        
-        # 核心包：目前主流为 cuda12
-        cmd = [python_exe, "-m", "pip", "install", "jax[cuda12]", "-i", mirror_url]
-        
-        logger.info(f"开始安装 GPU 补丁: {' '.join(cmd)}")
-        process = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True, 
-            timeout=1800 # 30 分钟超时针对 1GB+ 的巨型包
-        )
-        
-        if process.returncode == 0:
-            logger.info("GPU 补丁安装成功！")
-            return {"status": "success", "message": "GPU 驱动强化补丁安装成功！请重启软件。"}
-        else:
-            logger.error(f"GPU 补丁安装失败: {process.stderr[-500:]}")
+    mirror_url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+    
+    if getattr(sys, 'frozen', False):
+        # ── onedir 打包模式：使用内嵌 pip 安装 ──
+        try:
+            from pip._internal.cli.main import main as pip_main
+        except ImportError:
+            logger.error("内嵌 pip 模块未找到")
             return {
-                "status": "error", 
-                "message": f"安装失败: {process.stderr[-200:]}", # 返回末尾错误日志
-                "return_code": process.returncode
+                "status": "error",
+                "message": "内部 pip 模块缺失，请联系开发者重新打包。"
             }
+        
+        # 安装目标：_internal/ 目录（PyInstaller onedir 的运行时目录）
+        internal_dir = os.path.dirname(sys.executable)
+        internal_path = os.path.join(internal_dir, "_internal")
+        if not os.path.isdir(internal_path):
+            internal_path = internal_dir  # fallback
+        
+        logger.info(f"使用内嵌 pip 安装到: {internal_path}")
+        
+        try:
+            # 在子线程中运行 pip，避免阻塞事件循环
+            import asyncio
+            result = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: pip_main([
+                    "install", "jax[cuda12]",
+                    "--target", internal_path,
+                    "-i", mirror_url,
+                    "--no-warn-script-location",
+                    "--quiet"
+                ])
+            )
             
-    except Exception as e:
-        logger.exception(f"GPU 安装异常: {e}")
-        return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
+            if result == 0:
+                logger.info("GPU 补丁安装成功！")
+                return {"status": "success", "message": "GPU 加速组件安装成功！请重启软件以生效。"}
+            else:
+                logger.error(f"pip install 返回码: {result}")
+                return {"status": "error", "message": f"安装失败 (返回码 {result})。\n请检查网络连接或磁盘空间。"}
+                
+        except Exception as e:
+            logger.exception(f"GPU 安装异常: {e}")
+            return {"status": "error", "message": f"安装过程出错: {str(e)}"}
+    
+    else:
+        # ── 开发模式：直接用当前 Python 的 pip ──
+        try:
+            cmd = [sys.executable, "-m", "pip", "install", "jax[cuda12]", "-i", mirror_url]
+            
+            logger.info(f"开始安装 GPU 补丁: {' '.join(cmd)}")
+            process = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                timeout=1800
+            )
+            
+            if process.returncode == 0:
+                logger.info("GPU 补丁安装成功！")
+                return {"status": "success", "message": "GPU 驱动强化补丁安装成功！请重启软件。"}
+            else:
+                error_msg = (process.stderr or '').strip()[-500:] or '未知错误'
+                logger.error(f"GPU 补丁安装失败: {error_msg}")
+                return {
+                    "status": "error", 
+                    "message": f"安装失败: {error_msg[-200:]}",
+                    "return_code": process.returncode
+                }
+        except subprocess.TimeoutExpired:
+            return {"status": "error", "message": "安装超时，请检查网络连接后重试。"}
+        except Exception as e:
+            logger.exception(f"GPU 安装异常: {e}")
+            return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
 
 def _kill_process_on_port(port: int):
     """在 Windows 上查找并杀死占用指定端口的进程，防止 Errno 10048"""
-    try:
-        import socket
-        # 先快速检测端口是否真的被占用
+    import socket
+    import time as _time
+    
+    def _is_port_free(p):
+        """True = 端口可用，False = 被占用"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(1)
-            result = s.connect_ex(('127.0.0.1', port))
-            if result != 0:
-                # 端口空闲，无需处理
-                return
+            s.settimeout(0.5)
+            return s.connect_ex(('127.0.0.1', p)) != 0
+    
+    try:
+        if _is_port_free(port):
+            logger.info(f"端口 {port} 空闲，无需清理")
+            return
         
         logger.warning(f"端口 {port} 已被占用，正在尝试释放...")
         
-        # 使用 netstat 找到占用端口的 PID
+        # 第一轮：用 netstat 找 PID 并 taskkill
         result = subprocess.run(
             ['netstat', '-ano'],
             capture_output=True, text=True, timeout=10
@@ -343,31 +424,51 @@ def _kill_process_on_port(port: int):
         
         target_pids = set()
         for line in result.stdout.splitlines():
-            # 匹配 LISTENING 状态的 127.0.0.1:port
-            if f'127.0.0.1:{port}' in line and 'LISTENING' in line:
-                parts = line.strip().split()
-                if parts:
-                    try:
-                        pid = int(parts[-1])
-                        if pid != os.getpid():  # 不要杀死自己
-                            target_pids.add(pid)
-                    except ValueError:
-                        pass
+            if f'127.0.0.1:{port}' in line or f'0.0.0.0:{port}' in line:
+                if 'LISTENING' in line or 'ESTABLISHED' in line:
+                    parts = line.strip().split()
+                    if parts:
+                        try:
+                            pid = int(parts[-1])
+                            if pid != os.getpid() and pid > 0:
+                                target_pids.add(pid)
+                        except ValueError:
+                            pass
         
         for pid in target_pids:
             logger.info(f"正在终止占用端口的进程 PID={pid}")
             try:
+                # /T = 同时终止子进程树
                 subprocess.run(
-                    ['taskkill', '/F', '/PID', str(pid)],
+                    ['taskkill', '/F', '/T', '/PID', str(pid)],
                     capture_output=True, timeout=10
                 )
             except Exception as e:
                 logger.warning(f"终止进程 {pid} 失败: {e}")
         
-        if target_pids:
-            import time as _time
-            _time.sleep(1)  # 等待端口释放
-            logger.info(f"端口 {port} 清理完成")
+        # 第二轮：反复验证端口是否已释放（最多等 8 秒）
+        for i in range(16):
+            _time.sleep(0.5)
+            if _is_port_free(port):
+                logger.info(f"端口 {port} 已成功释放（等待了 {(i+1)*0.5:.1f} 秒）")
+                return
+        
+        # 第三轮：如果还是没释放，尝试杀死所有名为 main.exe 的进程
+        logger.warning(f"端口 {port} 仍未释放，尝试杀死所有 main.exe 进程...")
+        try:
+            subprocess.run(
+                ['taskkill', '/F', '/IM', 'main.exe'],
+                capture_output=True, timeout=10
+            )
+        except Exception:
+            pass
+        
+        # 最后再等 2 秒
+        _time.sleep(2)
+        if _is_port_free(port):
+            logger.info(f"端口 {port} 最终清理成功")
+        else:
+            logger.error(f"端口 {port} 始终无法释放，服务可能启动失败")
             
     except Exception as e:
         logger.warning(f"端口清理过程出错（将继续尝试启动）: {e}")

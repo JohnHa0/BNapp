@@ -58,19 +58,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller -r backend/requirements.txt
-          # If requirements.txt is too heavy for CI disk, consider stripping jax-cuda if not needed for builds
 
-      - name: Build Python Sidecar (PyInstaller)
+      - name: Build Python Sidecar (PyInstaller onedir)
         shell: bash
         run: |
-          pyinstaller --onefile --name main backend/main.py
+          # 使用 main.spec (onedir 模式)，输出到 dist-backend/ 避免与 Vite 的 dist/ 冲突
+          pyinstaller main.spec --noconfirm --distpath dist-backend
           mkdir -p src-tauri/binaries
-          # 为 macOS 重命名时增加后缀，如果是 exe 则保留
+          
+          # 复制 exe (重命名为 Tauri sidecar 格式)
           if [[ "${{ matrix.os_name }}" == "windows" ]]; then
-            mv dist/main.exe src-tauri/binaries/${{ matrix.binary_name }}
+            cp "dist-backend/main/main.exe" "src-tauri/binaries/${{ matrix.binary_name }}"
           else
-            mv dist/main src-tauri/binaries/${{ matrix.binary_name }}
+            cp "dist-backend/main/main" "src-tauri/binaries/${{ matrix.binary_name }}"
           fi
+          
+          # 复制 _internal 运行时目录
+          cp -r "dist-backend/main/_internal" "src-tauri/binaries/_internal"
+          
+          echo "=== Sidecar directory size ==="
+          du -sh src-tauri/binaries/ || true
 
       - name: Install Frontend Dependencies
         shell: bash
@@ -85,10 +92,10 @@ jobs:
           releaseName: 'DeepBayes Evaluation Pipeline ${{ github.ref_name }}'
           releaseBody: |
             ## 全平台发布说明
-            - **Windows**: 支持 .msi / .exe 安装程序。
-            - **macOS**: 支持 Intel/Apple Silicon (模拟) .dmg。
+            - **Windows**: 支持 .msi / .exe 安装程序 (NSIS 压缩)。
+            - **macOS**: 支持 Apple Silicon .dmg。
             - **Ubuntu**: 兼容 Linux 发行版 .deb / .AppImage。
             
-            内置 Python 推演后端 (NUTS Sampler v1.0)。
+            内置 Python 推演后端与 GPU 加速安装器 (NUTS Sampler v1.0)。
           releaseDraft: true
           prerelease: false
