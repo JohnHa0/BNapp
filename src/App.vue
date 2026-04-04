@@ -17,7 +17,7 @@
           <i class="fas fa-bolt mr-1.5"></i> 快速预览
         </span>
         <span class="px-2.5 py-1 rounded bg-indigo-900/60 border border-indigo-700/50 text-xs font-semibold text-neon-cyan flex items-center shadow-inner">
-          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> v1.0.1 Pro
+          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> v1.0.2 Pro
         </span>
       </div>
     </header>

@@ -1,6 +1,6 @@
 [package]
 name = "hb-eval-system"
-version = "0.1.1"
+version = "1.0.2"
 description = "HB Eval System"
 authors = ["you"]
 edition = "2021"
