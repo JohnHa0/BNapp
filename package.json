@@ -24,5 +24,3 @@
     "vite": "^4.4.5"
   }
 }
-
-git add . && git commit -m "chore: update version to 1.0.1 and fix sidecar dependency resolution" && git push origin master && git tag -d v1.0.1 && git push origin :refs/tags/v1.0.1 && git tag v1.0.1 && git push origin v1.0.1
