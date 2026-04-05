@@ -147,10 +147,10 @@ netstat -ano | findstr 18521
 - **Real-time Engine Logs**: Frontend control-center streams live MCMC sampling progress directly from the Python sub-process.
 
 ## 推送更新
-git tag -d v1.0.1
-git push origin :refs/tags/v1.0.1
-git tag v1.0.1
-git push origin v1.0.1
+git tag -d v1.0.2
+git push origin :refs/tags/v1.0.2
+git tag v1.0.2
+git push origin v1.0.2
 ## 本地打包
 - 初始化 PowerShell 扩展：conda init powershell，重启终端以生效
 - 激活环境：conda activate bnapp-backend

@@ -93,6 +93,31 @@ os.environ.setdefault("PYTENSOR_FLAGS", "device=cpu,floatX=float64,optimizer=fas
 # matplotlib: 强制使用非交互式后端，避免打包后找不到 Tk/Qt
 os.environ.setdefault("MPLBACKEND", "Agg")
 
+# ─────────────────────── PyTensor / PyMC 运行时修正 ───────────────────────
+def _setup_pytensor_for_frozen():
+    """解决打包后 C Linker 找不到 _internal\\libs 的问题，彻底禁用 C 语言编译"""
+    if not getattr(sys, 'frozen', False):
+        return
+
+    try:
+        # 设置 PyTensor 编译缓存路径到用户本地目录 (避免安装目录无权限)
+        user_local_appdata = os.environ.get("LOCALAPPDATA", os.path.join(os.path.expanduser("~"), "AppData", "Local"))
+        app_data_dir = os.path.join(user_local_appdata, "DeepBayes", "pytensor_cache")
+        os.makedirs(app_data_dir, exist_ok=True)
+        
+        # 核心修复: 禁用 C 语言后端的编译 (cxx="") 
+        # 因为目标机器上往往没有安装 GCC/MSYS2，尝试调用 CLinker 会引发 WinError 3 (系统找不到指定的路径)
+        # 禁用后会自动回退到纯 Python / NumPy 后端执行推演，兼容性最好。
+        flags = f"device=cpu,floatX=float64,cxx=,optimizer=fast_compile,base_compiledir={app_data_dir}"
+        os.environ["PYTENSOR_FLAGS"] = flags
+        
+        logger.info(f"开启打包兼容模式，PYTENSOR_FLAGS: {flags}")
+             
+    except Exception as e:
+        logger.warning(f"PyTensor 运行时环境配置失败: {e}")
+
+_setup_pytensor_for_frozen()
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -184,7 +209,7 @@ except Exception as e:
     logger.exception(f"核心模块加载失败: {e}")
     raise
 
-app = FastAPI(title="DeepBayes 层次贝叶斯推理引擎 - v1.0.1")
+app = FastAPI(title="DeepBayes 层次贝叶斯推理引擎 - v1.0.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -306,7 +331,7 @@ async def get_system_info():
         has_gpu = any("gpu" in d.lower() for d in device_types)
         logger.info(f"系统信息: JAX {jax.__version__}, devices={device_types}")
         return {
-            "version": "1.0.1",
+            "version": "1.0.2",
             "jax_version": jax.__version__,
             "devices": device_types,
             "has_gpu": has_gpu,
@@ -314,7 +339,7 @@ async def get_system_info():
         }
     except Exception as e:
         logger.warning(f"JAX 检测失败 (正常，将使用 PyMC 原生采样): {e}")
-        return {"version": "1.0.1", "backend": "CPU (PyMC)", "error": str(e)}
+        return {"version": "1.0.2", "backend": "CPU (PyMC)", "error": str(e)}
 
 @app.post("/api/install_gpu_pack")
 async def install_gpu_pack():
@@ -483,4 +508,17 @@ if __name__ == "__main__":
     _kill_process_on_port(port)
     
     logger.info(f"启动 FastAPI 服务器 -> http://127.0.0.1:{port}")
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    
+    # 增加重试机制，解决 Windows 端口释放延迟导致的 Errno 10048
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
+            break
+        except Exception as e:
+            if "10048" in str(e) and attempt < max_retries - 1:
+                logger.warning(f"端口绑定失败 (重试 {attempt+1}/{max_retries})...")
+                time.sleep(1.5)
+            else:
+                logger.error(f"无法启动服务器: {e}")
+                raise e

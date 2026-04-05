@@ -2,7 +2,7 @@
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
-# 收集运行时需要的静态数据文件
+# 确保 arviz/pymc 等包的数据文件被正确收集
 datas = []
 datas += collect_data_files('arviz')
 datas += collect_data_files('matplotlib')
@@ -28,7 +28,7 @@ hiddenimports = [
 ]
 
 a = Analysis(
-    ['backend\\main.py'],
+    ['backend/main.py'],
     pathex=[],
     binaries=[],
     datas=datas,

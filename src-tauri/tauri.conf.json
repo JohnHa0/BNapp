@@ -1,6 +1,6 @@
 {
   "productName": "DeepBayes HB Eval",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "identifier": "com.hb-eval.system",
   "build": {
     "beforeDevCommand": "npm run tauri:prepare && npm run dev",
@@ -38,7 +38,7 @@
       "binaries/main"
     ],
     "resources": {
-      "binaries/_internal/": "bin/_internal/"
+      "binaries/_internal/": "./_internal/"
     }
   }
 }
