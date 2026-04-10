@@ -56,7 +56,7 @@
     <div class="flex-1 grid grid-cols-12 grid-rows-2 gap-5 min-h-0">
       
       <!-- Box 1: DAG Topology & Geo Map -->
-      <div class="col-span-4 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
+      <div :class="[isShockMode ? 'border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.3)] ring-1 ring-rose-500/50' : 'border-slate-200 shadow-md', 'col-span-4 row-span-1 bg-white rounded-2xl flex flex-col overflow-hidden relative group transition-all duration-700']">
         <div class="px-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm flex items-center h-12 z-10 shrink-0 select-none">
           <div class="flex space-x-6 h-full items-center">
              <button @click="switchTab('dag')" class="h-full px-2 text-sm font-bold border-b-2 transition-colors flex items-center" :class="activeTopLeftTab==='dag' ? 'text-indigo-600 border-indigo-600' : 'text-slate-400 border-transparent hover:text-slate-600'">
@@ -82,9 +82,10 @@
       </div>
 
       <!-- Box 2: Scatter & Map -->
-      <div class="col-span-8 row-span-1 bg-slate-900 rounded-2xl shadow-xl border border-slate-800 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-2xl">
-        <div class="px-5 py-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center z-10">
-          <h2 class="text-sm font-bold text-slate-200"><i class="fas fa-crosshairs text-neon-cyan mr-2"></i>期望与实际离差评估 (Deviation Scatter)</h2>
+      <div :class="[isShockMode ? 'border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.4)]' : 'border-slate-800 shadow-xl hover:shadow-2xl', 'col-span-8 row-span-1 bg-slate-900 rounded-2xl flex flex-col overflow-hidden relative group transition-all duration-700']">
+        <div class="px-5 py-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center z-10 relative overflow-hidden">
+          <div v-if="isShockMode" class="absolute inset-0 bg-rose-600/20 w-full h-full animate-pulse blur-md"></div>
+          <h2 class="text-sm font-bold text-slate-200 z-10"><i class="fas fa-crosshairs text-neon-cyan mr-2" :class="{'text-rose-400': isShockMode}"></i>期望与实际离差评估 (Deviation Scatter)</h2>
           <div class="flex space-x-3 items-center">
             <div class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🎯 {{ targetAlias }}</div>
             <button @click="exportChart('scatter')" class="text-slate-400 hover:text-neon-cyan opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
@@ -139,8 +140,25 @@
                <span class="text-sm text-center">模型未包含任何环境变量数据<br>无法启用沙盘推演</span>
             </div>
             
-            <button v-if="editableCovariates.length > 0" @click="resetWhatIf" class="w-full mt-2 py-2 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors">
-              恢复原始快照
+            <!-- 极端冲击模拟器 -->
+            <div v-if="editableCovariates.length > 0" class="mt-8 pt-5 border-t border-slate-200 hide-scrollbar">
+               <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center">
+                 <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 极端冲击压力测试预案 (Shock Test)
+               </h3>
+               <div class="space-y-2 mb-2">
+                  <button @click="applyShock('crash')" class="w-full py-2.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                     <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                     <i class="fas fa-meteor mr-2"></i> 遭遇毁灭性黑天鹅事件 (-3SD 极端打击)
+                  </button>
+                  <button @click="applyShock('surge')" class="w-full py-2.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                     <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                     <i class="fas fa-rocket mr-2"></i> 触发突破性极值红利 (+3SD 全面对标)
+                  </button>
+               </div>
+            </div>
+            
+            <button v-if="editableCovariates.length > 0" @click="resetWhatIf" class="w-full mt-3 py-2 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors shadow-sm">
+              <i class="fas fa-undo-alt mr-1"></i> 恢复稳态数据快照
             </button>
           </div>
         </div>
@@ -194,6 +212,9 @@ const hasGeoData = computed(() => {
 // What-If States
 const editableCovariates = ref([]);
 let originalPerformanceData = [];
+
+// Dev states
+const isShockMode = ref(false);
 
 // Derived aliases
 const targetAlias = ref('Observational Target');
@@ -604,7 +625,32 @@ const updateWhatIf = () => {
     if(hasGeoData.value) renderGeo(newData); // Re-render map!
 };
 
+const applyShock = (type) => {
+    isShockMode.value = true;
+    editableCovariates.value.forEach(c => {
+        // Beta > 0 implies positive correlation. 
+        // Crash targets maximizing negative shift on Y expected.
+        if (type === 'crash') {
+            c.delta = c.beta > 0 ? -3 : 3;
+        } else {
+            c.delta = c.beta > 0 ? 3 : -3;
+        }
+    });
+
+    const interval = setInterval(() => {
+        const scatterBox = scatterChartRef.value?.parentElement;
+        if(scatterBox) scatterBox.style.transform = `translate(${Math.random()*4-2}px, ${Math.random()*4-2}px)`;
+    }, 40);
+
+    setTimeout(() => {
+        clearInterval(interval);
+        if(scatterChartRef.value?.parentElement) scatterChartRef.value.parentElement.style.transform = 'none';
+        updateWhatIf();
+    }, 500);
+};
+
 const resetWhatIf = () => {
+    isShockMode.value = false;
     editableCovariates.value.forEach(c => c.delta = 0);
     renderScatter(originalPerformanceData);
     if(hasGeoData.value) renderGeo(originalPerformanceData);
