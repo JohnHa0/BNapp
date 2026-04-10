@@ -521,9 +521,11 @@ const downloadSampleCSV = async () => {
         
         if (filePath) {
             await writeTextFile(filePath, csvContent);
+            alert("✅ 模版文件已成功保存至本地！");
         }
     } catch(e) {
         console.error("下载模版失败:", e);
+        alert(`❌ 保存失败: ${e.message || e}`);
     }
 };
 
@@ -540,9 +542,11 @@ const exportManualData = async () => {
         
         if (filePath) {
             await writeTextFile(filePath, manualCsvText.value);
+            alert("✅ 数据已成功保存至本地！");
         }
     } catch(e) {
         console.error("保存失败:", e);
+        alert(`❌ 保存失败: ${e.message || e}`);
     }
 };
 
