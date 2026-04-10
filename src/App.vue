@@ -82,9 +82,10 @@
         <VisualizationDashboard 
           v-else-if="currentStep === 'dashboard'" 
           :modelResults="inferenceResults" 
-          :hierarchySchema="currentHierarchy"
-          :displayMapping="currentDisplayMapping"
-          :rawTableData="rawTableData"
+          :hierarchy-schema="currentHierarchy"
+          :display-mapping="currentDisplayMapping"
+          :raw-table-data="rawTableData"
+          :target-variable="currentTarget"
           @reset="currentStep = 'import'"
         />
       </transition>

@@ -318,6 +318,71 @@ async def run_inference(req: InferenceRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"后端引擎推理失败: {str(e)}")
 
+from scipy.spatial.distance import cdist
+
+class BenchmarkRequest(BaseModel):
+    project_features: Dict[str, float]
+    historical_data: List[Dict[str, Any]]
+    covariate_cols: List[str]
+    betas: Dict[str, float]
+    id_column: str
+    target_column: str
+
+@app.post("/api/benchmark")
+async def benchmark_project(req: BenchmarkRequest):
+    try:
+        if not req.historical_data or not req.covariate_cols:
+            raise ValueError("历史数据或协变量为空")
+            
+        df_hist = pd.DataFrame(req.historical_data)
+        
+        for cov in req.covariate_cols:
+            if cov not in df_hist.columns:
+                df_hist[cov] = 0.0
+                
+        X_hist = df_hist[req.covariate_cols].values
+        X_new = np.array([[req.project_features.get(cov, 0.0) for cov in req.covariate_cols]])
+        
+        # Standardize for distance metric
+        mean_X = np.mean(X_hist, axis=0)
+        std_X = np.std(X_hist, axis=0) + 1e-8
+        
+        X_hist_std = (X_hist - mean_X) / std_X
+        X_new_std = (X_new - mean_X) / std_X
+        
+        # Euclidean distance in normalized space
+        distances = cdist(X_new_std, X_hist_std, metric='euclidean').flatten()
+        df_hist['benchmark_distance'] = distances
+        
+        # Calculate expected score delta (sum of beta * standard_X)
+        beta_array = np.array([req.betas.get(f"beta_{cov}", 0.0) for cov in req.covariate_cols])
+        expected_delta = np.sum(X_new_std[0] * beta_array)
+        
+        # Get baseline expected. Approx mean of Y
+        base_y = df_hist[req.target_column].mean() if req.target_column in df_hist.columns else 0.0
+        expected_y = base_y + expected_delta
+        
+        # Top 3 closest matches
+        top3 = df_hist.sort_values(by='benchmark_distance').head(3)
+        
+        matches = []
+        for _, row in top3.iterrows():
+            matches.append({
+                "node_name": str(row.get(req.id_column, "Unknown")),
+                "distance": float(row['benchmark_distance']),
+                "actual_y": float(row.get(req.target_column, 0.0))
+            })
+            
+        return {
+            "status": "success",
+            "expected_y": float(expected_y),
+            "expected_delta": float(expected_delta),
+            "matches": matches
+        }
+    except Exception as e:
+        logger.exception(f"Benchmark 失败: {e}")
+        raise HTTPException(status_code=500, detail=f"基准对标失败: {str(e)}")
+
 @app.get("/api/logs")
 async def get_logs():
     return {"log": output_grabber.get_latest()}

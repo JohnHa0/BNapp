@@ -2,7 +2,7 @@
   <div class="h-full bg-ice-white p-6 relative flex flex-col font-sans">
     
     <!-- Meta-Editor Modal -->
-    <div v-if="showMetaEditor" class="fixed inset-0 bg-deep-blue/40 backdrop-blur-sm flex justify-center items-center z-50">
+    <div v-if="showMetaEditor" class="fixed inset-0 bg-deep-blue/40 backdrop-blur-sm flex justify-center items-center z-[60]">
       <div class="bg-white p-6 rounded-xl shadow-2xl w-96 transform transition-all">
         <h3 class="font-bold text-lg text-slate-800 mb-1">重写图表视觉语义</h3>
         <p class="text-xs text-slate-500 mb-4">修改在图表里呈现的数据标签，使之符合汇报风格。</p>
@@ -29,6 +29,73 @@
       </div>
     </div>
 
+    <!-- New Project Benchmark Modal -->
+    <div v-if="showBenchmarkModal" class="fixed inset-0 bg-deep-blue/60 backdrop-blur-sm flex justify-center items-center z-[60] overflow-y-auto py-8">
+      <div class="bg-white p-6 rounded-xl shadow-2xl w-[600px] transform transition-all max-h-full flex flex-col">
+        <div class="flex justify-between items-center mb-4 shrink-0">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center"><i class="fas fa-balance-scale text-indigo-600 mr-2"></i>拟建项目事前风险对标引擎</h3>
+            <button @click="showBenchmarkModal = false" class="text-slate-400 hover:text-slate-600 transition-colors"><i class="fas fa-times text-xl"></i></button>
+        </div>
+        <p class="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 shrink-0 leading-relaxed">
+            输入拟建项目的本地基准环境指标，AI 将通过高维马氏距离/欧式距离，在底层数据库中为您匹配环境最相似的历史标杆项目，并利用当前贝叶斯网络权重测算其最终效能落点预估值。
+        </p>
+
+        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div class="grid grid-cols-2 gap-4 mb-2">
+               <div v-for="(covObj, index) in editableCovariates" :key="index">
+                   <label class="block text-xs font-bold text-slate-700 mb-1.5 truncate" :title="covObj.alias">{{ covObj.alias }}</label>
+                   <input type="number" step="0.1" v-model.number="newProjectInputs[covObj.original]" class="w-full bg-slate-50 border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none rounded p-2 text-sm transition-all" />
+               </div>
+            </div>
+            
+            <div class="flex justify-end border-t border-slate-100 pt-5 mt-4">
+               <button @click="runBenchmark" :disabled="isBenchmarking" class="px-5 py-2.5 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold shadow-md shadow-indigo-600/30 flex items-center transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                   <i v-if="isBenchmarking" class="fas fa-spinner fa-spin mr-2"></i> 
+                   <i v-else class="fas fa-bolt mr-2"></i> 立即进行对标演算
+               </button>
+            </div>
+
+            <div v-if="benchmarkResults" class="mt-6 border-t border-slate-200 pt-5 animate-fade-in">
+               <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center"><i class="fas fa-clipboard-check text-emerald-500 mr-2"></i>演算智库简报 (Intelligence Brief)</h4>
+               
+               <div class="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-5 mb-5 flex justify-between items-center shadow-sm">
+                   <div>
+                       <div class="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mb-1">贝叶斯预期效能落点</div>
+                       <div class="text-2xl font-black text-slate-800 flex items-baseline">
+                           {{ targetAlias }}: <span class="text-indigo-700 ml-2">{{ benchmarkResults.expected_y.toFixed(3) }}</span>
+                       </div>
+                   </div>
+                   <div class="text-right">
+                       <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">对比全局历史期望位移</div>
+                       <div class="text-xl font-bold flex items-center justify-end" :class="benchmarkResults.expected_delta > 0 ? 'text-emerald-600' : 'text-rose-600'">
+                           <i :class="benchmarkResults.expected_delta > 0 ? 'fas fa-arrow-up mr-1' : 'fas fa-arrow-down mr-1'"></i>
+                           {{ Math.abs(benchmarkResults.expected_delta).toFixed(3) }}
+                       </div>
+                   </div>
+               </div>
+
+               <h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">高维空间环境最相似历史项目 (Nearest Neighbors)</h4>
+               <div class="space-y-3">
+                   <div v-for="(match, idx) in benchmarkResults.matches" :key="idx" class="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3.5 hover:border-indigo-300 transition-colors shadow-sm relative overflow-hidden">
+                       <div class="absolute left-0 top-0 bottom-0 w-1" :class="idx === 0 ? 'bg-amber-400' : (idx === 1 ? 'bg-slate-300' : 'bg-amber-700/50')"></div>
+                       <div class="flex items-center pl-2">
+                           <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white mr-4 shadow-inner" :class="idx === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-600' : (idx === 1 ? 'bg-gradient-to-br from-slate-400 to-slate-500' : 'bg-gradient-to-br from-amber-700 to-amber-800')">#{{ idx + 1 }}</div>
+                           <div>
+                               <div class="text-sm font-bold text-slate-800 mb-0.5">{{ displayMapping[match.node_name] || match.node_name }}</div>
+                               <div class="text-[10px] text-slate-400 font-mono tracking-tight">K-NN 特征空间距离: {{ match.distance.toFixed(3) }}</div>
+                           </div>
+                       </div>
+                       <div class="text-right">
+                           <div class="text-[10px] text-slate-400 mb-0.5">该标杆实际历史效能</div>
+                           <div class="text-base font-mono font-bold text-slate-700">{{ match.actual_y.toFixed(3) }}</div>
+                       </div>
+                   </div>
+               </div>
+            </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toolbar -->
     <div class="flex justify-between items-center mb-6 bg-deep-blue p-4 rounded-xl shadow-lg border border-slate-700/50 text-white shrink-0">
       <div>
@@ -40,6 +107,9 @@
         </p>
       </div>
       <div class="flex space-x-3">
+        <button @click="openBenchmark" class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600/90 rounded hover:bg-indigo-500 transition-colors flex items-center shadow shadow-indigo-900/50">
+          <i class="fas fa-balance-scale mr-1.5"></i>新项目对标演算
+        </button>
         <button @click="showMetaEditor = true" class="px-3 py-1.5 text-xs font-medium text-slate-200 bg-white/10 rounded hover:bg-white/20 transition-colors flex items-center">
           <i class="fas fa-paint-brush mr-1.5"></i>外观配置
         </button>
@@ -179,7 +249,8 @@ const props = defineProps({
   modelResults: { type: Object, required: true },
   hierarchySchema: { type: Array, required: true },
   displayMapping: { type: Object, default: () => ({}) },
-  rawTableData: { type: Array, default: () => [] }
+  rawTableData: { type: Array, default: () => [] },
+  targetVariable: { type: Object, default: null }
 });
 
 const emit = defineEmits(['reset']);
@@ -215,6 +286,12 @@ let originalPerformanceData = [];
 
 // Dev states
 const isShockMode = ref(false);
+
+// Benchmark states
+const showBenchmarkModal = ref(false);
+const newProjectInputs = ref({});
+const benchmarkResults = ref(null);
+const isBenchmarking = ref(false);
 
 // Derived aliases
 const targetAlias = ref('Observational Target');
@@ -654,6 +731,50 @@ const resetWhatIf = () => {
     editableCovariates.value.forEach(c => c.delta = 0);
     renderScatter(originalPerformanceData);
     if(hasGeoData.value) renderGeo(originalPerformanceData);
+};
+
+// --- BENCHMARK LOGIC ---
+const openBenchmark = () => {
+   showBenchmarkModal.value = true;
+   benchmarkResults.value = null;
+   editableCovariates.value.forEach(c => {
+       newProjectInputs.value[c.original] = 0.0;
+   });
+};
+
+const runBenchmark = async () => {
+    isBenchmarking.value = true;
+    try {
+        const targetIdCol = props.hierarchySchema[props.hierarchySchema.length-1]?.id_column;
+        const targetAliasMap = props.targetVariable ? props.targetVariable.original : Object.keys(props.rawTableData[0]).find(k => !editableCovariates.value.map(c=>c.original).includes(k) && typeof props.rawTableData[0][k] === 'number');
+        
+        const payload = {
+            project_features: newProjectInputs.value,
+            historical_data: props.rawTableData,
+            covariate_cols: editableCovariates.value.map(c => c.original),
+            betas: props.modelResults.betas,
+            id_column: targetIdCol || 'NodeName',
+            target_column: targetAliasMap || 'Target'
+        };
+        
+        const response = await fetch(`${window.__deepbayes_backend_url || 'http://127.0.0.1:18521'}/api/benchmark`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if(!response.ok) {
+           const err = await response.json();
+           throw new Error(err.detail || 'API Call failed');
+        }
+        
+        benchmarkResults.value = await response.json();
+    } catch(e) {
+        console.error("Benchmark error:", e);
+        alert(`验证失败: ${e.message || e}`);
+    } finally {
+        isBenchmarking.value = false;
+    }
 };
 
 // --- EXPORT LOGIC ---
