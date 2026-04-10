@@ -355,7 +355,7 @@ async def benchmark_project(req: BenchmarkRequest):
         df_hist['benchmark_distance'] = distances
         
         # Calculate expected score delta (sum of beta * standard_X)
-        beta_array = np.array([req.betas.get(f"beta_{cov}", 0.0) for cov in req.covariate_cols])
+        beta_array = np.array([req.betas.get(cov, 0.0) for cov in req.covariate_cols])
         expected_delta = np.sum(X_new_std[0] * beta_array)
         
         # Get baseline expected. Approx mean of Y

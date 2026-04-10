@@ -746,7 +746,7 @@ const runBenchmark = async () => {
     isBenchmarking.value = true;
     try {
         const targetIdCol = props.hierarchySchema[props.hierarchySchema.length-1]?.id_column;
-        const targetAliasMap = props.targetVariable ? props.targetVariable.original : Object.keys(props.rawTableData[0]).find(k => !editableCovariates.value.map(c=>c.original).includes(k) && typeof props.rawTableData[0][k] === 'number');
+        const targetAliasMap = props.targetVariable ? (props.targetVariable.name || props.targetVariable.original) : Object.keys(props.rawTableData[0]).find(k => !editableCovariates.value.map(c=>c.original).includes(k) && typeof props.rawTableData[0][k] === 'number');
         
         const payload = {
             project_features: newProjectInputs.value,
