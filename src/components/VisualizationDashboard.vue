@@ -312,17 +312,19 @@ const renderDAG = (schema) => {
     let links = [];
     
     // Root Target
-    nodes.push({ name: 'Target (Y)', symbolSize: 35, itemStyle: { color: '#f59e0b' } });
+    const rootName = targetAlias.value || 'Target (Y)';
+    nodes.push({ name: rootName, symbolSize: 35, itemStyle: { color: '#f59e0b' } });
     
     // Nodes
     schema.forEach((level, idx) => {
         let levelName = level.level_name || `L${idx+1}`;
         nodes.push({ name: levelName, symbolSize: 20, itemStyle: { color: '#4f46e5' } });
-        links.push({ source: levelName, target: idx === 0 ? 'Target (Y)' : (schema[idx-1].level_name || `L${idx}`) });
+        links.push({ source: levelName, target: idx === 0 ? rootName : (schema[idx-1].level_name || `L${idx}`) });
         
         level.covariates.forEach(cov => {
-            nodes.push({ name: cov, symbolSize: 10, itemStyle: { color: '#10b981' } });
-            links.push({ source: cov, target: levelName });
+            const displayCov = props.displayMapping[cov] || cov;
+            nodes.push({ name: displayCov, symbolSize: 10, itemStyle: { color: '#10b981' } });
+            links.push({ source: displayCov, target: levelName });
         });
     });
 
