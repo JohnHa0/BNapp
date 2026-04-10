@@ -553,6 +553,11 @@ const renderForest = (summaryDf) => {
     series: [
       {
         type: 'custom',
+        encode: {
+            x: [1, 2, 3],
+            y: 0,
+            tooltip: [0, 2, 1, 3]
+        },
         renderItem: (params, api) => {
           const y = api.coord([0, params.dataIndex])[1]; // params.dataIndex correctly grabs the categorical rank/tick
           const color = api.value(2) > 0 ? '#10b981' : '#f43f5e';
