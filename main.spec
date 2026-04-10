@@ -18,14 +18,9 @@ datas += copy_metadata('pytensor')
 datas += copy_metadata('pymc')
 datas += copy_metadata('arviz')
 
-# 确保 pip 被打包进来，供 GPU 在线安装使用
-hiddenimports = [
-    'pip',
-    'pip._internal',
-    'pip._internal.cli',
-    'pip._internal.cli.main',
-    'pip._vendor',
-]
+# 确保 pip 被完整打包进来，供 GPU 在线安装使用
+hiddenimports = collect_submodules('pip')
+datas += collect_data_files('pip')
 
 a = Analysis(
     ['backend/main.py'],

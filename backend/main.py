@@ -352,6 +352,45 @@ async def install_gpu_pack():
     if getattr(sys, 'frozen', False):
         # ── onedir 打包模式：使用内嵌 pip 安装 ──
         try:
+            # -------- PyInstaller PIP 补丁 --------
+            # pip._vendor.distlib 找不到 finder 导致报错。手动为 PyInstaller 的 loader 注册 finder
+            import pip._vendor.distlib.resources as distlib_res
+            
+            importer_type = type(sys.modules['pip._vendor.distlib'].__loader__)
+            if importer_type not in distlib_res.finder_registry:
+                class DummyResource:
+                    def __init__(self, name, b):
+                        self.name = name
+                        self.bytes = b
+                        
+                class PyInstallerFinder:
+                    def __init__(self, module):
+                        self.module = module
+                        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+                        if not os.path.basename(base_dir) == "_internal":
+                            base_dir = os.path.join(base_dir, "_internal")
+                        self.base_path = os.path.join(base_dir, module.__name__.replace('.', os.sep))
+                        
+                    def find(self, resource_name):
+                        p = os.path.join(self.base_path, resource_name.replace('/', os.sep))
+                        if os.path.exists(p):
+                            with open(p, 'rb') as f:
+                                return DummyResource(resource_name, f.read())
+                        return None
+                        
+                    def iterator(self, resource_name):
+                        p = os.path.join(self.base_path, resource_name.replace('/', os.sep))
+                        if os.path.isdir(p):
+                            for fname in os.listdir(p):
+                                rp = os.path.join(p, fname)
+                                if os.path.isfile(rp):
+                                    with open(rp, 'rb') as f:
+                                        res_name = f"{resource_name}/{fname}" if resource_name else fname
+                                        yield DummyResource(res_name, f.read())
+                                        
+                distlib_res.finder_registry[importer_type] = PyInstallerFinder
+                logger.info("已成功注册 PyInstaller PIP 资源扫描器钩子。")
+            # --------------------------------------
             from pip._internal.cli.main import main as pip_main
         except ImportError:
             logger.error("内嵌 pip 模块未找到")

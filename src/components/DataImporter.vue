@@ -14,6 +14,8 @@
             <option value="geopolitics">【地缘政治】全球同盟冲突演化博弈沙盘 (带地图坐标)</option>
             <option value="health">【公共卫生】跨国-区域重症致死率归因</option>
             <option value="retail">【商业零售】跨国总部-区域市场销量推演</option>
+            <option value="coral_reef">【生态保护】珊瑚礁生态保护观测网方案</option>
+            <option value="overseas_resilience">【战略规划】海外利益韧性图谱与风险预测</option>
           </select>
           <button @click="showManualInput = true" class="px-5 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-all flex items-center">
             <i class="fas fa-edit mr-2"></i>手动录入数据
@@ -273,9 +275,19 @@
         
         <textarea v-model="manualCsvText" class="flex-1 w-full border border-slate-300 rounded p-3 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none mb-4" placeholder="大洲,大区名称,经度坐标,纬度坐标,资金投入X,目标达成情况Y&#10;亚洲,远东,116.4,39.9,150.5,0.88&#10;美洲,北美,-74.0,40.7,210.0,0.92"></textarea>
         
-        <div class="flex justify-end space-x-3 mt-auto">
-          <button @click="showManualInput = false" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded font-medium">取消</button>
-          <button @click="handleManualSubmit" class="px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded font-bold shadow-sm">解析并载入模型</button>
+        <div class="flex justify-between items-center mt-auto">
+          <div class="flex space-x-3">
+             <button @click="loadDemoToEditor" class="px-3 py-1.5 text-xs text-indigo-600 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded font-medium transition flex items-center">
+               <i class="fas fa-file-import mr-1.5"></i>载入当前所选范例模板
+             </button>
+             <button @click="exportManualData" class="px-3 py-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 rounded font-medium transition flex items-center" title="将编辑区内容保存为CSV文件">
+               <i class="fas fa-save mr-1.5"></i>保存至本地 (.csv)
+             </button>
+          </div>
+          <div class="flex space-x-3">
+            <button @click="showManualInput = false" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded font-medium">取消</button>
+            <button @click="handleManualSubmit" class="px-4 py-2 text-sm text-white bg-emerald-600 hover:bg-emerald-700 rounded font-bold shadow-sm">解析并载入模型</button>
+          </div>
         </div>
       </div>
     </div>
@@ -423,13 +435,87 @@ const parseCsvToState = (csvText) => {
   hierarchy.value = [{ id: 'L1', level_index: 0, level_name: '网格管理层 L1', id_column: null, covariates: [] }];
 };
 
+const getDemoCsvData = (demoKey) => {
+    switch (demoKey) {
+        case 'public_security':
+            return `省厅区划,市局单位,分局名称,专班经费投入,警力巡防密度,监控覆盖率,经度坐标,纬度坐标,综合打防转化率
+广东省,广州市,天河分局,450,0.85,0.92,113.264,23.129,0.88
+广东省,广州市,越秀分局,520,0.91,0.98,113.266,23.129,0.94
+广东省,深圳市,南山分局,310,0.76,0.85,113.930,22.533,0.79
+广东省,深圳市,福田分局,390,0.82,0.90,114.055,22.533,0.83
+广东省,佛山市,南海分局,280,0.71,0.88,113.122,23.021,0.81
+广东省,湛江市,霞山分局,190,0.61,0.72,110.358,21.276,0.65
+广东省,珠海市,香洲分局,260,0.75,0.83,113.576,22.270,0.77`;
+        case 'geopolitics':
+            return `势力阵营,战略大区,主权国家,热点城市,经度坐标,纬度坐标,经济制裁深度,军事兵力投送量,武器军援指数,网络战攻击强度,区域维稳指数Y
+北约集群NATO,东欧战略区,乌克兰,基辅Kyiv,30.523,50.450,0.95,0.80,0.92,0.75,0.30
+北约集群NATO,东欧战略区,波兰,华沙Warsaw,21.012,52.229,0.15,0.55,0.40,0.20,0.88
+北约集群NATO,高加索观察区,格鲁吉亚,第比利斯Tbilisi,44.827,41.715,0.10,0.30,0.20,0.10,0.85
+金砖抗压链BRICS,远东及亚太,俄罗斯,符拉迪沃斯托克VVO,131.886,43.119,0.50,0.85,0.70,0.55,0.75
+金砖抗压链BRICS,中东新轴心,叙利亚,大马士革Damascus,36.291,33.513,0.88,0.72,0.89,0.60,0.25
+金砖抗压链BRICS,中东新轴心,也门,萨那Sanaa,44.206,15.369,0.70,0.45,0.95,0.30,0.18
+中间游离带,南亚次大陆,印度,新德里NewDelhi,77.209,28.613,0.05,0.60,0.40,0.35,0.90
+中间游离带,非洲之角,索马里,摩加迪沙Mogadishu,45.343,2.046,0.20,0.15,0.80,0.12,0.15
+中间游离带,东南亚通道,缅甸,内比都Naypyidaw,96.131,19.763,0.30,0.25,0.55,0.18,0.40`;
+        case 'health':
+            return `大洲,国家,重症ICU代号,危重医学拨款,医床周转率,院感防控值,病死率
+北美洲,美国,US-H1,1500,0.3,0.85,0.012
+北美洲,美国,US-H2,1200,0.25,0.91,0.015
+北美洲,加拿大,CA-H1,900,0.4,0.70,0.009
+欧洲区,英国,UK-H1,1100,0.35,0.88,0.011
+欧洲区,德国,DE-H1,1300,0.45,0.65,0.007`;
+        case 'retail':
+            return `全球大区,国家市场,城市群,品牌公关预算,竞品下沉率,当地人均GDP,当季净利润增长率
+APAC,中国,长三角,500,0.8,2.1,1.12
+APAC,中国,珠三角,450,0.9,1.9,1.05
+APAC,日本,关东圈,300,0.95,3.5,0.98
+EMEA,英国,大伦敦,400,0.7,3.8,1.01
+AMER,美国,加利福尼亚,800,0.85,4.5,1.25`;
+        case 'coral_reef':
+            return `国家战略层,站点战役层,经度坐标,纬度坐标,人口驻留X1,保护合规度X2,观测生物量Y
+英属印度洋领地,Chagos,71.300,-6.300,0,3,2975.58
+巴布亚新几内亚,Karkar,145.900,-4.600,1,2,950.00
+所罗门群岛,Choiseul,156.900,-6.700,1,1,1800.00
+所罗门群岛,Makira,161.800,-10.500,1,1,1550.00
+印度尼西亚,Raja Ampat 1,130.500,-0.200,1,2,850.00
+澳大利亚,Lord Howe,159.000,-31.500,1,3,450.00
+夏威夷,Oahu 1,-158.000,21.400,1,1,150.00
+夏威夷,Maui 1,-156.300,20.800,1,1,180.00
+牙买加,Montego Bay 1,-77.900,18.400,1,1.5,80.00
+肯尼亚,Diani,39.500,-4.300,1,1,120.00
+印度尼西亚,Karimunjawa 2,110.400,-5.800,1,1.5,90.00
+澳大利亚,Great Barrier 1,145.000,-15.000,0,3,1100.00
+夏威夷,Kauai 1,-159.500,22.100,1,1,350.00
+所罗门群岛,Isabel,158.500,-8.000,1,1,1200.00
+牙买加,Rio Bueno,-77.400,18.400,1,1,210.00`;
+        case 'overseas_resilience':
+            return `国家L1,行业L2,项目名称L3,L1_X_东道国治安指数_1_10,L1_X_双边关系热度_1_10,L3_X_劳工本地化比例_Pct,L3_X_社区融合度得分_1_10,Y_项目按期完工率_Pct
+新加坡,基础设施,新港深水码头,9.5,8.5,45.0,8.0,92.5
+新加坡,数字科技,东南亚云数据中心,9.5,8.5,60.0,7.5,95.0
+卢旺达,数字科技,基加利智慧城市中枢,7.5,9.0,85.0,9.0,98.2
+卢旺达,公共卫生,中非医疗援助中心,7.5,9.0,70.0,9.5,96.0
+巴基斯坦,基础设施,瓜达尔港扩建工程,4.0,9.5,88.0,8.5,85.5
+巴基斯坦,能源矿产,塔尔煤田一体化,3.5,9.5,82.0,8.0,81.0
+某发达国家A,基础设施,跨国高铁标段二,9.0,6.0,15.0,3.0,35.5
+某发达国家A,数字科技,5G核心网建设,9.0,6.0,20.0,4.0,28.0
+某拉美国家B,能源矿产,锂矿开采一期,5.0,7.0,30.0,4.5,42.0
+某拉美国家B,基础设施,特高压输电走廊,5.0,7.0,50.0,6.0,65.0
+苏丹,能源矿产,尼罗河油田管道,2.5,8.0,90.0,8.5,78.5
+某东南亚国C,基础设施,雅万高铁枢纽,6.5,8.5,75.0,7.5,88.0
+某东南亚国C,金融布局,跨境人民币清算网,6.5,8.5,65.0,7.0,90.5`;
+        default:
+            return "省厅,分局,经度坐标,纬度坐标,警力投入X1,监控密度X2,打防转化率Y\n广东,天河,113.264,23.129,450,0.92,0.88\n广东,越秀,113.266,23.129,520,0.98,0.94\n广东,南山,113.930,22.533,310,0.85,0.79";
+    }
+};
+
 // Tool: Download sample CSV
 const downloadSampleCSV = async () => {
-    const csvContent = "省厅,分局,经度坐标,纬度坐标,警力投入X1,监控密度X2,打防转化率Y\n广东,天河,113.264,23.129,450,0.92,0.88\n广东,越秀,113.266,23.129,520,0.98,0.94\n广东,南山,113.930,22.533,310,0.85,0.79";
+    const csvContent = getDemoCsvData(selectedDemo.value).trim();
+    const fileName = selectedDemo.value ? `DeepBayes_Template_${selectedDemo.value}.csv` : "DeepBayes_Template_Default.csv";
     
     try {
         const filePath = await save({
-            defaultPath: "DeepBayes_Template.csv",
+            defaultPath: fileName,
             filters: [{ name: 'CSV Document', extensions: ['csv'] }]
         });
         
@@ -439,6 +525,33 @@ const downloadSampleCSV = async () => {
     } catch(e) {
         console.error("下载模版失败:", e);
     }
+};
+
+const exportManualData = async () => {
+    if(!manualCsvText.value.trim()){
+        alert("编辑器内无数据可保存");
+        return;
+    }
+    try {
+        const filePath = await save({
+            defaultPath: "DeepBayes_Manual_Data.csv",
+            filters: [{ name: 'CSV Document', extensions: ['csv'] }]
+        });
+        
+        if (filePath) {
+            await writeTextFile(filePath, manualCsvText.value);
+        }
+    } catch(e) {
+        console.error("保存失败:", e);
+    }
+};
+
+const loadDemoToEditor = () => {
+    if (!selectedDemo.value) {
+        alert("请先在左侧下拉框中选择一个沙盒模板！");
+        return;
+    }
+    manualCsvText.value = getDemoCsvData(selectedDemo.value).trim();
 };
 
 // Alias Rename actions
@@ -569,18 +682,12 @@ const loadDemo = () => {
   else if (selectedDemo.value === 'health') injectHealthDemo();
   else if (selectedDemo.value === 'retail') injectRetailDemo();
   else if (selectedDemo.value === 'geopolitics') injectGeopoliticsDemo();
+  else if (selectedDemo.value === 'coral_reef') injectCoralReefDemo();
+  else if (selectedDemo.value === 'overseas_resilience') injectOverseasResilienceDemo();
 };
 
 const injectPublicSecurityDemo = () => {
-    const csvData = `
-省厅区划,市局单位,分局名称,专班经费投入,警力巡防密度,监控覆盖率,经度坐标,纬度坐标,综合打防转化率
-广东省,广州市,天河分局,450,0.85,0.92,113.264,23.129,0.88
-广东省,广州市,越秀分局,520,0.91,0.98,113.266,23.129,0.94
-广东省,深圳市,南山分局,310,0.76,0.85,113.930,22.533,0.79
-广东省,深圳市,福田分局,390,0.82,0.90,114.055,22.533,0.83
-广东省,佛山市,南海分局,280,0.71,0.88,113.122,23.021,0.81
-广东省,湛江市,霞山分局,190,0.61,0.72,110.358,21.276,0.65
-广东省,珠海市,香洲分局,260,0.75,0.83,113.576,22.270,0.77`;
+    const csvData = getDemoCsvData('public_security').trim();
     parseCsvToState(csvData);
     
     // Auto map the structure for demo purposes
@@ -614,17 +721,7 @@ const injectPublicSecurityDemo = () => {
 };
 
 const injectGeopoliticsDemo = () => {
-    const csvData = `
-势力阵营,战略大区,主权国家,热点城市,经度坐标,纬度坐标,经济制裁深度,军事兵力投送量,武器军援指数,网络战攻击强度,区域维稳指数Y
-北约集群NATO,东欧战略区,乌克兰,基辅Kyiv,30.523,50.450,0.95,0.80,0.92,0.75,0.30
-北约集群NATO,东欧战略区,波兰,华沙Warsaw,21.012,52.229,0.15,0.55,0.40,0.20,0.88
-北约集群NATO,高加索观察区,格鲁吉亚,第比利斯Tbilisi,44.827,41.715,0.10,0.30,0.20,0.10,0.85
-金砖抗压链BRICS,远东及亚太,俄罗斯,符拉迪沃斯托克VVO,131.886,43.119,0.50,0.85,0.70,0.55,0.75
-金砖抗压链BRICS,中东新轴心,叙利亚,大马士革Damascus,36.291,33.513,0.88,0.72,0.89,0.60,0.25
-金砖抗压链BRICS,中东新轴心,也门,萨那Sanaa,44.206,15.369,0.70,0.45,0.95,0.30,0.18
-中间游离带,南亚次大陆,印度,新德里NewDelhi,77.209,28.613,0.05,0.60,0.40,0.35,0.90
-中间游离带,非洲之角,索马里,摩加迪沙Mogadishu,45.343,2.046,0.20,0.15,0.80,0.12,0.15
-中间游离带,东南亚通道,缅甸,内比都Naypyidaw,96.131,19.763,0.30,0.25,0.55,0.18,0.40`;
+    const csvData = getDemoCsvData('geopolitics').trim();
     parseCsvToState(csvData);
     
     // 自动映射4层拓扑结构
@@ -659,24 +756,72 @@ const injectGeopoliticsDemo = () => {
 };
 
 const injectHealthDemo = () => {
-    const csvData = `
-大洲,国家,重症ICU代号,危重医学拨款,医床周转率,院感防控值,病死率
-北美洲,美国,US-H1,1500,0.3,0.85,0.012
-北美洲,美国,US-H2,1200,0.25,0.91,0.015
-北美洲,加拿大,CA-H1,900,0.4,0.70,0.009
-欧洲区,英国,UK-H1,1100,0.35,0.88,0.011
-欧洲区,德国,DE-H1,1300,0.45,0.65,0.007`;
+    const csvData = getDemoCsvData('health').trim();
     parseCsvToState(csvData);
 };
 
 const injectRetailDemo = () => {
-    const csvData = `
-全球大区,国家市场,城市群,品牌公关预算,竞品下沉率,当地人均GDP,当季净利润增长率
-APAC,中国,长三角,500,0.8,2.1,1.12
-APAC,中国,珠三角,450,0.9,1.9,1.05
-APAC,日本,关东圈,300,0.95,3.5,0.98
-EMEA,英国,大伦敦,400,0.7,3.8,1.01
-AMER,美国,加利福尼亚,800,0.85,4.5,1.25`;
+    const csvData = getDemoCsvData('retail').trim();
     parseCsvToState(csvData);
+};
+
+const injectCoralReefDemo = () => {
+    const csvData = getDemoCsvData('coral_reef').trim();
+    parseCsvToState(csvData);
+    
+    setTimeout(() => {
+        const findCol = (name) => unassignedColumns.value.find(c => c.original === name);
+        const mapOne = (colObj, type, lIdx) => {
+           if(!colObj) return;
+           unassignedColumns.value = unassignedColumns.value.filter(c => c.id !== colObj.id);
+           if(type === 'target') targetVariable.value = colObj;
+           else if (type === 'id') hierarchy.value[lIdx].id_column = colObj;
+           else if (type === 'cov') hierarchy.value[lIdx].covariates.push(colObj);
+        };
+        
+        mapOne(findCol('观测生物量Y'), 'target', null);
+        hierarchy.value = [
+          { id: 'l1', level_index: 0, level_name: '国家环境保护战略级', id_column: null, covariates: []},
+          { id: 'l2', level_index: 1, level_name: '站点观测战役级', id_column: null, covariates: []}
+        ];
+        mapOne(findCol('国家战略层'), 'id', 0);
+        mapOne(findCol('站点战役层'), 'id', 1);
+        
+        mapOne(findCol('人口驻留X1'), 'cov', 1);
+        mapOne(findCol('保护合规度X2'), 'cov', 1);
+    }, 100);
+};
+
+const injectOverseasResilienceDemo = () => {
+    const csvData = getDemoCsvData('overseas_resilience').trim();
+    parseCsvToState(csvData);
+    
+    setTimeout(() => {
+        const findCol = (name) => unassignedColumns.value.find(c => c.original === name);
+        const mapOne = (colObj, type, lIdx) => {
+           if(!colObj) return;
+           unassignedColumns.value = unassignedColumns.value.filter(c => c.id !== colObj.id);
+           if(type === 'target') targetVariable.value = colObj;
+           else if (type === 'id') hierarchy.value[lIdx].id_column = colObj;
+           else if (type === 'cov') hierarchy.value[lIdx].covariates.push(colObj);
+        };
+        
+        mapOne(findCol('Y_项目按期完工率_Pct'), 'target', null);
+        hierarchy.value = [
+          { id: 'l1', level_index: 0, level_name: '东道国 (Host Country)', id_column: null, covariates: []},
+          { id: 'l2', level_index: 1, level_name: '行业领域 (Industry Sector)', id_column: null, covariates: []},
+          { id: 'l3', level_index: 2, level_name: '实体项目 (Project)', id_column: null, covariates: []}
+        ];
+        mapOne(findCol('国家L1'), 'id', 0);
+        mapOne(findCol('行业L2'), 'id', 1);
+        mapOne(findCol('项目名称L3'), 'id', 2);
+        
+        mapOne(findCol('L1_X_东道国治安指数_1_10'), 'cov', 0);
+        mapOne(findCol('L1_X_双边关系热度_1_10'), 'cov', 0);
+        mapOne(findCol('L3_X_劳工本地化比例_Pct'), 'cov', 2);
+        mapOne(findCol('L3_X_社区融合度得分_1_10'), 'cov', 2);
+        
+        if(targetVariable.value) targetVariable.value.alias = "项目按期完工率期望 (Y)";
+    }, 100);
 };
 </script>
