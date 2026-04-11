@@ -42,7 +42,13 @@ else {
 # 2. Sync dependencies (Optional, but recommended)
 Write-Host ">>> [2/7] Checking/Syncing Python dependencies..." -ForegroundColor Cyan
 if (Test-Path "backend\requirements.txt") {
-    & pip install -r backend\requirements.txt
+    # Using extra-index-url to ensure pre-compiled CPU wheels for llama-cpp-python are found
+    # to avoid requiring a local C++ compilation environment
+    & pip install -r backend\requirements.txt --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ">>> [Error] Failed to install Python dependencies. Please ensure you have a standard Python environment or C++ build tools installed." -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 }
 
 # 3. PyInstaller build (onedir 模式，输出到 dist-backend/main/ 目录，避免与 Vite 的 dist/ 冲突)

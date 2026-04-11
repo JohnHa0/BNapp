@@ -27,11 +27,19 @@ datas += collect_data_files('pip')
 # ================= RAG / ChromaDB / PyMuPDF 依赖配置 =================
 datas += collect_data_files('chromadb')
 try:
+    datas += collect_data_files('llama_cpp')
+except Exception:
+    pass
+try:
     datas += collect_data_files('onnxruntime')
     datas += collect_data_files('tokenizers')
 except Exception:
     pass
 datas += copy_metadata('chromadb')
+try:
+    datas += copy_metadata('llama_cpp')
+except Exception:
+    pass
 try:
     datas += copy_metadata('hnswlib')
     datas += copy_metadata('onnxruntime')
@@ -44,6 +52,10 @@ except Exception:
 
 hiddenimports += collect_submodules('chromadb')
 hiddenimports += collect_submodules('pydantic')
+try:
+    hiddenimports += collect_submodules('llama_cpp')
+except Exception:
+    pass
 hiddenimports += [
     'fitz',  # PyMuPDF
     'chromadb.telemetry.product.posthog',

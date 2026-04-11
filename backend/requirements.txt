@@ -13,3 +13,4 @@ requests>=2.31.0
 jax
 jaxlib
 pyinstaller
+llama-cpp-python>=0.2.56

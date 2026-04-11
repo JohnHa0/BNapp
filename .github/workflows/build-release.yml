@@ -56,13 +56,13 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libfuse2
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libfuse2 zsync
 
       - name: Install Python Backend Dependencies
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller -r backend/requirements.txt
+          pip install pyinstaller -r backend/requirements.txt --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
       - name: Build Python Sidecar (PyInstaller onedir)
         shell: bash
@@ -92,6 +92,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NO_STRIP: true
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'DeepBayes Evaluation Pipeline ${{ github.ref_name }}'
