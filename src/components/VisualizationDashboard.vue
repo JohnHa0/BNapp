@@ -395,7 +395,18 @@
                   </div>
                </div>
                
-               <button @click="resetWhatIf" class="w-full mt-5 py-3 text-sm font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors shadow-lg hover:shadow-xl shrink-0 flex items-center justify-center group">
+               <!-- AI War Room Decision Panel -->
+               <div class="mt-4 mb-3 bg-slate-900 rounded-xl p-4 shadow-lg border border-slate-700 relative overflow-hidden flex flex-col shrink-0 min-h-[120px] max-h-[200px]">
+                   <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-neon-cyan to-emerald-500"></div>
+                   <div class="flex items-center text-[10px] font-bold text-neon-cyan uppercase tracking-widest mb-2 shrink-0">
+                       <i class="fas fa-brain mr-2 animate-pulse"></i> 智库参谋 (AI War Room)
+                       <span v-if="aiThinking" class="ml-2 text-slate-400 font-mono animate-pulse">...Retrieving Strategy...</span>
+                   </div>
+                   <div class="flex-1 overflow-y-auto custom-scrollbar text-[11px] text-slate-300 font-mono leading-relaxed prose prose-invert prose-p:my-1 prose-sm" v-html="formattedAiDecision">
+                   </div>
+               </div>
+               
+               <button @click="resetWhatIf" class="w-full mt-2 py-3 text-sm font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors shadow-lg hover:shadow-xl shrink-0 flex items-center justify-center group">
                  <i class="fas fa-power-off text-rose-400 mr-2 group-hover:text-amber-400 transition-colors"></i> 结束推演，数据回退稳态
                </button>
             </div>
@@ -427,6 +438,20 @@ const emit = defineEmits(['reset']);
 
 // Meta Editor States
 const showMetaEditor = ref(false);
+const editingNode = ref(null);
+
+// Phase 3: AI War Room
+const aiDecisionText = ref("");
+const aiThinking = ref(false);
+
+const formattedAiDecision = computed(() => {
+    // Simple markdown to HTML
+    let text = aiDecisionText.value;
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>');
+    text = text.replace(/\n/g, '<br/>');
+    return text || "<span class='text-slate-500'>[等待指令]</span>";
+});
+
 const titles = ref({
   main: '全域多层效能推演诊断报告',
   bright: '效能卓越节点',
@@ -970,7 +995,47 @@ const applyShock = (type) => {
         if(hasGeoData.value) renderGeo(newData);
         renderDAG(props.hierarchySchema);
         
+        // 5. Trigger AI War Room Decision Stream
+        requestAiDecision(type, diff, impactReport.value.achillesName, worst, best);
     }, 500);
+};
+
+const requestAiDecision = async (shock_type, var_drop, trigger_node, top_fragile, top_resilient) => {
+    aiDecisionText.value = "";
+    aiThinking.value = true;
+    try {
+        const payload = {
+            shock_type,
+            var_drop,
+            trigger_node,
+            top_fragile: top_fragile.slice(0,3).map(n=>props.displayMapping[n.name] || n.name),
+            top_resilient: top_resilient.slice(0,3).map(n=>props.displayMapping[n.name] || n.name)
+        };
+        
+        const res = await fetch('http://127.0.0.1:18521/api/settings/llm/stream_decision', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if(!res.ok) {
+            aiDecisionText.value = "[参谋终端报错: 无法联系大模型引擎，请检查设置面板中的引擎状态]";
+            aiThinking.value = false;
+            return;
+        }
+        
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            aiDecisionText.value += decoder.decode(value, { stream: true });
+        }
+    } catch(err) {
+        aiDecisionText.value = `[通信故障: ${err.message}]`;
+    } finally {
+        aiThinking.value = false;
+    }
 };
 
 const resetWhatIf = () => {
