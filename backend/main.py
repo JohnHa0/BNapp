@@ -354,29 +354,58 @@ async def benchmark_project(req: BenchmarkRequest):
         distances = cdist(X_new_std, X_hist_std, metric='euclidean').flatten()
         df_hist['benchmark_distance'] = distances
         
-        # Calculate expected score delta (sum of beta * standard_X)
+        # Calculate expected score delta and individual factors
         beta_array = np.array([req.betas.get(cov, 0.0) for cov in req.covariate_cols])
-        expected_delta = np.sum(X_new_std[0] * beta_array)
+        delta_array = X_new_std[0] * beta_array
+        expected_delta = np.sum(delta_array)
+        
+        # Build factors list for attribution
+        factors = []
+        for i, cov in enumerate(req.covariate_cols):
+            val_in = req.project_features.get(cov, 0.0)
+            val_mean = mean_X[i]
+            delta_contribution = delta_array[i]
+            factors.append({
+                "covariate": cov,
+                "input": float(val_in),
+                "mean": float(val_mean),
+                "contribution": float(delta_contribution)
+            })
+            
+        factors.sort(key=lambda x: x['contribution'], reverse=True)
         
         # Get baseline expected. Approx mean of Y
         base_y = df_hist[req.target_column].mean() if req.target_column in df_hist.columns else 0.0
         expected_y = base_y + expected_delta
         
         # Top 3 closest matches
-        top3 = df_hist.sort_values(by='benchmark_distance').head(3)
+        top3_idx = np.argsort(distances)[:3]
         
         matches = []
-        for _, row in top3.iterrows():
+        for idx in top3_idx:
+            row = df_hist.iloc[idx]
+            dist = distances[idx]
+            
+            # Simple similarity mapping curving down
+            sim = max(0.0, min(99.9, 100.0 * np.exp(-dist/2.0)))
+            
+            features_dict = {}
+            for cov in req.covariate_cols:
+                features_dict[cov] = float(row.get(cov, 0.0))
+                
             matches.append({
                 "node_name": str(row.get(req.id_column, "Unknown")),
-                "distance": float(row['benchmark_distance']),
-                "actual_y": float(row.get(req.target_column, 0.0))
+                "distance": float(dist),
+                "similarity": float(sim),
+                "actual_y": float(row.get(req.target_column, 0.0)),
+                "features": features_dict
             })
             
         return {
             "status": "success",
             "expected_y": float(expected_y),
             "expected_delta": float(expected_delta),
+            "factors": factors,
             "matches": matches
         }
     except Exception as e:

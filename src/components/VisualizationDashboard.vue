@@ -62,7 +62,7 @@
                    <div>
                        <div class="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mb-1">贝叶斯预期效能落点</div>
                        <div class="text-2xl font-black text-slate-800 flex items-baseline">
-                           {{ targetAlias }}: <span class="text-indigo-700 ml-2">{{ benchmarkResults.expected_y.toFixed(3) }}</span>
+                           {{ targetAlias }}: <span class="text-indigo-700 ml-2" :title="benchmarkResults.expected_y">{{ benchmarkResults.expected_y.toFixed(3) }}</span>
                        </div>
                    </div>
                    <div class="text-right">
@@ -73,6 +73,38 @@
                        </div>
                    </div>
                </div>
+               
+               <!-- Factor AI Attributions -->
+               <div class="mb-5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                   <div class="text-[10px] text-slate-500 font-bold mb-2 tracking-wide uppercase">核心动因拆解 (Key Drivers)</div>
+                   <div class="flex flex-wrap gap-2">
+                       <div v-if="getTopFactors('pos').length > 0" v-for="f in getTopFactors('pos')" :key="'p'+f.covariate" class="flex items-center bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-1 rounded shadow-sm border border-emerald-200">
+                           <i class="fas fa-arrow-up text-emerald-500 mr-1.5"></i>
+                           <span class="truncate max-w-[120px]">{{ displayMapping[f.covariate] || f.covariate }}</span>
+                           <span class="ml-1.5 text-emerald-600 bg-white px-1 rounded-sm">+{{ f.contribution.toFixed(2) }}</span>
+                       </div>
+                       
+                       <div v-if="getTopFactors('neg').length > 0" v-for="f in getTopFactors('neg')" :key="'n'+f.covariate" class="flex items-center bg-rose-100 text-rose-800 text-[11px] font-bold px-2 py-1 rounded shadow-sm border border-rose-200">
+                           <i class="fas fa-arrow-down text-rose-500 mr-1.5"></i>
+                           <span class="truncate max-w-[120px]">{{ displayMapping[f.covariate] || f.covariate }}</span>
+                           <span class="ml-1.5 text-rose-600 bg-white px-1 rounded-sm">{{ f.contribution.toFixed(2) }}</span>
+                       </div>
+                   </div>
+               </div>
+
+               <!-- Executive Summary -->
+               <div class="mb-5">
+                   <div class="text-xs font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-robot text-indigo-500 mr-1.5"></i>AI 辅助决策参谋纪要</div>
+                   <textarea readonly class="w-full h-32 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3 text-xs text-slate-700 leading-relaxed resize-none focus:outline-none custom-scrollbar" :value="executiveSummary"></textarea>
+               </div>
+
+               <!-- Radar Chart -->
+               <div class="mb-5 border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
+                   <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 text-xs font-bold text-slate-600 flex justify-between items-center">
+                       <span><i class="fas fa-spider text-slate-400 mr-1.5"></i>多维特征雷达映射</span>
+                   </div>
+                   <div ref="benchmarkRadarRef" class="w-full h-48"></div>
+               </div>
 
                <h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">高维空间环境最相似历史项目 (Nearest Neighbors)</h4>
                <div class="space-y-3">
@@ -82,7 +114,10 @@
                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white mr-4 shadow-inner" :class="idx === 0 ? 'bg-gradient-to-br from-amber-400 to-amber-600' : (idx === 1 ? 'bg-gradient-to-br from-slate-400 to-slate-500' : 'bg-gradient-to-br from-amber-700 to-amber-800')">#{{ idx + 1 }}</div>
                            <div>
                                <div class="text-sm font-bold text-slate-800 mb-0.5">{{ displayMapping[match.node_name] || match.node_name }}</div>
-                               <div class="text-[10px] text-slate-400 font-mono tracking-tight">K-NN 特征空间距离: {{ match.distance.toFixed(3) }}</div>
+                               <div class="flex items-center gap-2">
+                                   <div class="text-[10px] text-white bg-indigo-500/90 px-1.5 py-0.5 rounded font-bold shadow-sm">匹配度: {{ match.similarity.toFixed(1) }}%</div>
+                                   <div class="text-[10px] text-slate-400 font-mono tracking-tight">K-NN 距离: {{ match.distance.toFixed(3) }}</div>
+                               </div>
                            </div>
                        </div>
                        <div class="text-right">
@@ -292,6 +327,9 @@ const showBenchmarkModal = ref(false);
 const newProjectInputs = ref({});
 const benchmarkResults = ref(null);
 const isBenchmarking = ref(false);
+const executiveSummary = ref('');
+const benchmarkRadarRef = ref(null);
+let benchmarkRadarChart = null;
 
 // Derived aliases
 const targetAlias = ref('Observational Target');
@@ -769,12 +807,93 @@ const runBenchmark = async () => {
         }
         
         benchmarkResults.value = await response.json();
+        generateExecutiveSummary();
+        nextTick(() => {
+            initBenchmarkRadar();
+        });
     } catch(e) {
         console.error("Benchmark error:", e);
         alert(`验证失败: ${e.message || e}`);
     } finally {
         isBenchmarking.value = false;
     }
+};
+
+const getTopFactors = (type) => {
+    if (!benchmarkResults.value || !benchmarkResults.value.factors) return [];
+    const factors = benchmarkResults.value.factors;
+    if (type === 'pos') {
+        return factors.filter(f => f.contribution > 0.01).slice(0, 2);
+    } else {
+        // Factors are sorted pos to neg, so last ones are most negative
+        return factors.filter(f => f.contribution < -0.01).slice(-2).reverse();
+    }
+};
+
+const generateExecutiveSummary = () => {
+    const res = benchmarkResults.value;
+    const match1 = res.matches[0];
+    const topPos = getTopFactors('pos');
+    const topNeg = getTopFactors('neg');
+    
+    let text = `【智能审评意见】该拟建项目在多元环境指标上与历史【${props.displayMapping[match1.node_name] || match1.node_name}】高度重叠（多维特征相似度达 ${match1.similarity.toFixed(1)}%）。\n`;
+    
+    text += `贝叶斯引擎深度计算预测其综合首发效能落点为 ${res.expected_y.toFixed(3)}，该表现${res.expected_delta >= 0 ? '优于' : '劣于'}全局基准期望。\n`;
+    
+    if (topNeg.length > 0) {
+        text += `\n⚠️ 【核心风险警示】其「${props.displayMapping[topNeg[0].covariate] || topNeg[0].covariate}」评估极为弱势，在整个网络拓扑中构成了致命的拖累（边际削弱效应极大）。\n`;
+    }
+    
+    if (topPos.length > 0) {
+        text += `\n✅ 【有效缓冲利好】幸而该项目的「${props.displayMapping[topPos[0].covariate] || topPos[0].covariate}」提供了强大的势能加持，构成了一定程度的抗压护城河。\n`;
+    }
+    
+    text += `\n【参谋决策建议】综合模型推演，建议战略决策层参考【${props.displayMapping[match1.node_name] || match1.node_name}】过往沉淀出的实操经验，提前针对风险拖累项配置专项资金或安保倾斜，即可逆转颓势。`;
+    
+    executiveSummary.value = text;
+};
+
+const initBenchmarkRadar = () => {
+    if (!benchmarkRadarRef.value || !benchmarkResults.value) return;
+    if (benchmarkRadarChart) {
+        benchmarkRadarChart.dispose();
+    }
+    benchmarkRadarChart = echarts.init(benchmarkRadarRef.value);
+    
+    const res = benchmarkResults.value;
+    const match1 = res.matches[0];
+    const top5Factors = res.factors.slice(0, 6); // Up to 6 axes makes a nice radar
+    
+    const indicator = top5Factors.map(f => {
+        const histVal = match1.features[f.covariate] || 0;
+        let maxVal = Math.max(Math.abs(f.input), Math.abs(histVal), Math.abs(f.mean)) * 1.3;
+        if(maxVal === 0) maxVal = 1;
+        return { 
+            name: props.displayMapping[f.covariate] || f.covariate,
+            max: maxVal
+        };
+    });
+
+    const option = {
+        tooltip: { trigger: 'item', textStyle: { fontSize: 11 } },
+        legend: { bottom: '0%', data: ['本拟建项目', `最佳对标锚点`, '全局均值极值'], textStyle: { fontSize: 10, color: '#64748b' } },
+        radar: {
+            indicator: indicator,
+            radius: '55%',
+            name: { textStyle: { color: '#64748b', fontSize: 10 } }
+        },
+        series: [{
+            type: 'radar',
+            symbolSize: 4,
+            data: [
+                { value: top5Factors.map(f => f.input), name: '本拟建项目', itemStyle: { color: '#4f46e5' }, lineStyle: { width: 2 }, areaStyle: { color: 'rgba(79, 70, 229, 0.4)' } },
+                { value: top5Factors.map(f => match1.features[f.covariate] || 0), name: `最佳对标锚点`, itemStyle: { color: '#f59e0b' }, lineStyle: { type: 'dashed' } },
+                { value: top5Factors.map(f => f.mean), name: '全局均值极值', itemStyle: { color: '#94a3b8' }, lineStyle: { type: 'dotted' } }
+            ]
+        }]
+    };
+    
+    benchmarkRadarChart.setOption(option);
 };
 
 // --- EXPORT LOGIC ---
