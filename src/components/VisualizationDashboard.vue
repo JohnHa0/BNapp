@@ -197,6 +197,43 @@
           </div>
         </div>
         <div ref="scatterChartRef" class="flex-1 w-full bg-[#0a192f] relative z-0"></div>
+        
+        <!-- Impact Report Overlay for Shock Test -->
+        <div v-if="isShockMode && impactReport" class="absolute top-14 right-4 w-64 bg-slate-900/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-2xl p-4 z-20 transition-all duration-500 scale-in-center">
+            <h4 class="text-[11px] font-bold text-amber-500 uppercase tracking-widest mb-3 flex items-center border-b border-slate-700 pb-2">
+                <i class="fas fa-clipboard-list mr-2"></i> <span v-if="shockTypeRun==='achilles'">极值敏感点击穿核算</span><span v-else-if="shockTypeRun==='crash'">全域末日坍塌核算</span><span v-else>极值红利复盘</span>
+            </h4>
+            
+            <div class="mb-4">
+                <div class="text-[10px] text-slate-400 mb-1">系统大盘效能均值蒸发量 (VAR)</div>
+                <div class="text-2xl font-mono font-black" :class="impactReport.diff > 0 ? 'text-emerald-400' : 'text-rose-500'">
+                    {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
+                </div>
+                <div v-if="shockTypeRun==='achilles'" class="text-[9px] text-amber-500/80 mt-1"><i class="fas fa-crosshairs"></i> 致命触发锚点: {{ impactReport.achillesName }}</div>
+            </div>
+            
+            <!-- Safe Assets -->
+            <div class="mb-3">
+                <div class="text-[10px] text-slate-500 font-bold mb-1.5"><i class="fas fa-shield-alt text-emerald-500 mr-1"></i>扛压绝境韧性资产 (Top Resilient)</div>
+                <div class="space-y-1 relative">
+                    <div v-for="(node, i) in impactReport.best" :key="i" class="flex justify-between items-center text-[10px] bg-emerald-900/20 px-2 py-1.5 rounded border border-emerald-500/20">
+                        <span class="text-slate-200 truncate pr-2 w-28">{{ displayMapping[node.name] || node.name }}</span>
+                        <span class="text-emerald-400 font-bold font-mono">+{{ node.postDeviation.toFixed(2) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Failures -->
+            <div>
+                <div class="text-[10px] text-slate-500 font-bold mb-1.5"><i class="fas fa-skull text-rose-500 mr-1"></i>脆弱性结构崩盘区 (Top Fragile)</div>
+                <div class="space-y-1 relative">
+                    <div v-for="(node, i) in impactReport.worst" :key="i" class="flex justify-between items-center text-[10px] bg-rose-900/20 px-2 py-1.5 rounded border border-rose-500/20">
+                        <span class="text-slate-200 truncate pr-2 w-28">{{ displayMapping[node.name] || node.name }}</span>
+                        <span class="text-rose-400 font-bold font-mono">{{ node.delta.toFixed(2) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
       </div>
 
       <!-- Box 3: PPC Density -->
@@ -248,16 +285,20 @@
             <!-- 极端冲击模拟器 -->
             <div v-if="editableCovariates.length > 0" class="mt-8 pt-5 border-t border-slate-200 hide-scrollbar">
                <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center">
-                 <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 极端冲击压力测试预案 (Shock Test)
+                 <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 金融级战损演习预案 (Shock Test)
                </h3>
-               <div class="space-y-2 mb-2">
-                  <button @click="applyShock('crash')" class="w-full py-2.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+               <div class="grid grid-cols-1 gap-2 mb-2">
+                  <button @click="applyShock('achilles')" class="w-full py-2 text-[11px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-all flex items-center justify-center group overflow-hidden relative">
                      <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                     <i class="fas fa-meteor mr-2"></i> 遭遇毁灭性黑天鹅事件 (-3SD 极端打击)
+                     <i class="fas fa-crosshairs mr-2"></i> 🌪️ "阿喀琉斯"最痛点击穿演习
                   </button>
-                  <button @click="applyShock('surge')" class="w-full py-2.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                  <button @click="applyShock('crash')" class="w-full py-2 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
                      <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                     <i class="fas fa-rocket mr-2"></i> 触发突破性极值红利 (+3SD 全面对标)
+                     <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌演习
+                  </button>
+                  <button @click="applyShock('surge')" class="w-full py-2 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                     <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                     <i class="fas fa-rocket mr-2"></i> 🚀 系统性历史极值红利探测
                   </button>
                </div>
             </div>
@@ -321,6 +362,8 @@ let originalPerformanceData = [];
 
 // Dev states
 const isShockMode = ref(false);
+const shockTypeRun = ref('');
+const impactReport = ref(null);
 
 // Benchmark states
 const showBenchmarkModal = ref(false);
@@ -459,10 +502,41 @@ const renderDAG = (schema) => {
         
         level.covariates.forEach(cov => {
             const displayCov = props.displayMapping[cov] || cov;
-            nodes.push({ name: displayCov, symbolSize: 10, itemStyle: { color: '#10b981' } });
-            links.push({ source: displayCov, target: levelName });
+            
+            let isShockedNode = false;
+            if (isShockMode.value) {
+                if (shockTypeRun.value === 'crash' || shockTypeRun.value === 'surge') isShockedNode = true;
+                else if (shockTypeRun.value === 'achilles' && editableCovariates.value.length > 0) {
+                    let achillesCovToMatch = editableCovariates.value.reduce((max, obj) => Math.abs(obj.beta) > Math.abs(max.beta) ? obj : max, editableCovariates.value[0]);
+                    if (cov === achillesCovToMatch.original) {
+                        isShockedNode = true;
+                    }
+                }
+            }
+            
+            nodes.push({ 
+                name: displayCov, 
+                symbolSize: isShockedNode ? 18 : 10, 
+                itemStyle: { 
+                    color: isShockedNode ? (shockTypeRun.value === 'surge' ? '#10b981' : '#f43f5e') : '#3b82f6',
+                    shadowColor: isShockedNode ? (shockTypeRun.value === 'surge' ? '#10b981' : '#f43f5e') : 'rgba(0,0,0,0)',
+                    shadowBlur: isShockedNode ? 20 : 0
+                } 
+            });
+            links.push({ 
+                source: displayCov, 
+                target: levelName,
+                lineStyle: isShockedNode ? { color: shockTypeRun.value === 'surge' ? '#10b981' : '#f43f5e', width: 4, type: 'dashed' } : undefined
+            });
         });
     });
+
+    // Color root nodes dynamically on shock
+    if (isShockMode.value) {
+         const colorHit = shockTypeRun.value === 'surge' ? '#10b981' : '#f43f5e';
+         const rootNode = nodes.find(n => n.name === rootName);
+         if(rootNode) rootNode.itemStyle = { color: colorHit, shadowColor: colorHit, shadowBlur: 30 };
+    }
 
     charts.value.dag.setOption({
         tooltip: {},
@@ -712,7 +786,7 @@ const renderForest = (summaryDf) => {
 };
 
 // --- WHAT IF LOGIC ---
-const updateWhatIf = () => {
+const updateWhatIf = (doRender = true) => {
     let newData = JSON.parse(JSON.stringify(originalPerformanceData));
     
     // Formula: Y_new = Y_old + Sum(delta_X * beta)
@@ -736,39 +810,81 @@ const updateWhatIf = () => {
        else d.Status = 'Neutral';
     });
     
-    renderScatter(newData); // Re-render smoothly!
-    if(hasGeoData.value) renderGeo(newData); // Re-render map!
+    if (doRender) {
+        renderScatter(newData); // Re-render smoothly!
+        if(hasGeoData.value) renderGeo(newData); // Re-render map!
+        renderDAG(props.hierarchySchema); // Keep DAG color sync
+    }
+    return newData;
 };
 
 const applyShock = (type) => {
     isShockMode.value = true;
+    shockTypeRun.value = type;
+    
+    let preExpectedMean = originalPerformanceData.reduce((acc, curr) => acc + curr.Expected, 0) / originalPerformanceData.length;
+    let achillesCov = editableCovariates.value.reduce((max, obj) => Math.abs(obj.beta) > Math.abs(max.beta) ? obj : max, editableCovariates.value[0]);
+
     editableCovariates.value.forEach(c => {
-        // Beta > 0 implies positive correlation. 
-        // Crash targets maximizing negative shift on Y expected.
         if (type === 'crash') {
             c.delta = c.beta > 0 ? -3 : 3;
-        } else {
+        } else if (type === 'surge') {
             c.delta = c.beta > 0 ? 3 : -3;
+        } else if (type === 'achilles') {
+            if (c.original === achillesCov.original) {
+                c.delta = c.beta > 0 ? -3 : 3;
+            } else {
+                c.delta = 0;
+            }
         }
     });
 
     const interval = setInterval(() => {
         const scatterBox = scatterChartRef.value?.parentElement;
-        if(scatterBox) scatterBox.style.transform = `translate(${Math.random()*4-2}px, ${Math.random()*4-2}px)`;
+        if(scatterBox) scatterBox.style.transform = `translate(${Math.random()*6-3}px, ${Math.random()*6-3}px)`;
     }, 40);
 
     setTimeout(() => {
         clearInterval(interval);
         if(scatterChartRef.value?.parentElement) scatterChartRef.value.parentElement.style.transform = 'none';
-        updateWhatIf();
+        
+        let newData = updateWhatIf(false);
+        
+        // Compute Post-shock metrics
+        let postExpectedMean = newData.reduce((acc, curr) => acc + curr.Expected, 0) / newData.length;
+        let diff = postExpectedMean - preExpectedMean;
+        
+        let nodeChanges = newData.map((d, idx) => ({
+            name: d.NodeName,
+            delta: d.Expected - originalPerformanceData[idx].Expected,
+            postDeviation: d.Deviation
+        })).sort((a,b) => a.delta - b.delta);
+        
+        let worst = nodeChanges.slice(0, 3);
+        let best = [...nodeChanges].sort((a,b) => b.postDeviation - a.postDeviation).slice(0, 3);
+        
+        impactReport.value = {
+            preMean: preExpectedMean,
+            postMean: postExpectedMean,
+            diff: diff,
+            achillesName: props.displayMapping[achillesCov?.original] || achillesCov?.original,
+            worst,
+            best
+        };
+        
+        renderScatter(newData);
+        if(hasGeoData.value) renderGeo(newData);
+        renderDAG(props.hierarchySchema);
+        
     }, 500);
 };
 
 const resetWhatIf = () => {
     isShockMode.value = false;
+    shockTypeRun.value = '';
+    impactReport.value = null;
     editableCovariates.value.forEach(c => c.delta = 0);
-    renderScatter(originalPerformanceData);
-    if(hasGeoData.value) renderGeo(originalPerformanceData);
+    updateWhatIf();
 };
 
 // --- BENCHMARK LOGIC ---
