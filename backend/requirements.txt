@@ -1,0 +1,15 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic>=2.5.2
+pandas>=2.0.0,<2.2.0
+numpy<2
+pymc>=5.10.0,<5.17.0
+arviz>=0.17.0,<0.20.0
+numpyro>=0.13.0,<0.16.0
+python-multipart>=0.0.9
+chromadb>=0.4.20
+PyMuPDF>=1.23.0
+requests>=2.31.0
+jax
+jaxlib
+pyinstaller

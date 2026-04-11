@@ -39,8 +39,14 @@ else {
     Write-Host ">>> [1/6] UPX detected." -ForegroundColor Green
 }
 
-# 2. PyInstaller build (onedir 模式，输出到 dist-backend/main/ 目录，避免与 Vite 的 dist/ 冲突)
-Write-Host ">>> [2/6] Building Python backend (onedir mode) via main.spec..." -ForegroundColor Cyan
+# 2. Sync dependencies (Optional, but recommended)
+Write-Host ">>> [2/7] Checking/Syncing Python dependencies..." -ForegroundColor Cyan
+if (Test-Path "backend\requirements.txt") {
+    & pip install -r backend\requirements.txt
+}
+
+# 3. PyInstaller build (onedir 模式，输出到 dist-backend/main/ 目录，避免与 Vite 的 dist/ 冲突)
+Write-Host ">>> [3/7] Building Python backend (onedir mode) via main.spec..." -ForegroundColor Cyan
 
 # 清理旧的构建产物
 if (Test-Path "dist-backend") { Remove-Item -Recurse -Force "dist-backend" }
@@ -56,8 +62,8 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# 3. Setup sidecar binaries (复制整个 onedir 目录)
-Write-Host ">>> [3/6] Setting up sidecar binaries (onedir)..." -ForegroundColor Cyan
+# 4. Setup sidecar binaries (复制整个 onedir 目录)
+Write-Host ">>> [4/7] Setting up sidecar binaries (onedir)..." -ForegroundColor Cyan
 
 $BinDir = "src-tauri\binaries"
 if (!(Test-Path $BinDir)) { New-Item -ItemType Directory -Force -Path $BinDir | Out-Null }
@@ -75,17 +81,17 @@ Copy-Item -Recurse -Force "dist-backend\main\_internal" "$BinDir\_internal"
 $internalSize = (Get-ChildItem -Recurse "$BinDir\_internal" | Measure-Object -Property Length -Sum).Sum / 1MB
 Write-Host ">>> _internal directory: $([math]::Round($internalSize, 1)) MB" -ForegroundColor DarkGray
 
-# 4. Check Frontend Packages
-Write-Host ">>> [4/6] Checking frontend dependencies..." -ForegroundColor Cyan
+# 5. Check Frontend Packages
+Write-Host ">>> [5/7] Checking frontend dependencies..." -ForegroundColor Cyan
 if (!(Test-Path "node_modules")) {
     npm i
 }
 
-# 5. Build Tauri (NSIS only, with compression)
-Write-Host ">>> [5/6] Building Tauri App (NSIS)..." -ForegroundColor Cyan
+# 6. Build Tauri (NSIS only, with compression)
+Write-Host ">>> [6/7] Building Tauri App (NSIS)..." -ForegroundColor Cyan
 npx tauri build --bundles nsis
 
-# 6. Report results
+# 7. Report results
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "Build complete!" -ForegroundColor Green
 if (Test-Path "src-tauri\target\release\bundle\nsis") {
