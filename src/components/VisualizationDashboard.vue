@@ -274,7 +274,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, shallowRef, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, shallowRef, computed, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
