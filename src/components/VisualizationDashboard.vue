@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full bg-ice-white p-6 relative flex flex-col font-sans">
+  <div class="h-full bg-ice-white p-6 relative flex flex-col font-sans overflow-hidden">
     
     <!-- Meta-Editor Modal -->
     <div v-if="showMetaEditor" class="fixed inset-0 bg-deep-blue/40 backdrop-blur-sm flex justify-center items-center z-[60]">
@@ -76,7 +76,15 @@
                
                <!-- Factor AI Attributions -->
                <div class="mb-5 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                   <div class="text-[10px] text-slate-500 font-bold mb-2 tracking-wide uppercase">核心动因拆解 (Key Drivers)</div>
+                   <div class="text-[10px] text-slate-500 font-bold mb-2 tracking-wide uppercase flex items-center group/attri relative">
+                       核心动因拆解 (Key Drivers)
+                       <i class="fas fa-question-circle ml-1.5 text-slate-300 cursor-help"></i>
+                       <div class="absolute bottom-full left-0 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/attri:opacity-100 group-hover/attri:scale-100 transition-all pointer-events-none z-50 font-normal">
+                           <div class="font-bold mb-1 text-indigo-400">边际贡献率说明</div>
+                           <p class="text-slate-300 leading-relaxed">此处展示的是「各环境变量」对「预期效能」的直接贡献值。正值代表拉升动力，负值代表下行风险。它是剥离了其他干扰因素后的核心因果贡献。</p>
+                           <div class="absolute top-full left-4 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                       </div>
+                   </div>
                    <div class="flex flex-wrap gap-2">
                        <div v-if="getTopFactors('pos').length > 0" v-for="f in getTopFactors('pos')" :key="'p'+f.covariate" class="flex items-center bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-1 rounded shadow-sm border border-emerald-200">
                            <i class="fas fa-arrow-up text-emerald-500 mr-1.5"></i>
@@ -115,7 +123,12 @@
                            <div>
                                <div class="text-sm font-bold text-slate-800 mb-0.5">{{ displayMapping[match.node_name] || match.node_name }}</div>
                                <div class="flex items-center gap-2">
-                                   <div class="text-[10px] text-white bg-indigo-500/90 px-1.5 py-0.5 rounded font-bold shadow-sm">匹配度: {{ match.similarity.toFixed(1) }}%</div>
+                                   <div class="text-[10px] text-white bg-indigo-500/90 px-1.5 py-0.5 rounded font-bold shadow-sm relative group/sim cursor-help">
+                                       匹配度: {{ match.similarity.toFixed(1) }}%
+                                       <div class="absolute bottom-full left-0 mb-2 w-56 bg-slate-800 text-white text-[10px] p-2.5 rounded-lg shadow-2xl opacity-0 scale-95 group-hover/sim:opacity-100 group-hover/sim:scale-100 transition-all pointer-events-none z-50 font-normal">
+                                          基于「马氏距离」测算。它考虑了各参数间的相关性，为您寻找在客观基准上与拟建项目最具有“血缘关系”的历史标杆。
+                                       </div>
+                                   </div>
                                    <div class="text-[10px] text-slate-400 font-mono tracking-tight">K-NN 距离: {{ match.distance.toFixed(3) }}</div>
                                </div>
                            </div>
@@ -173,9 +186,9 @@
           </div>
           <button @click="exportChart(activeTopLeftTab)" class="ml-auto text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
         </div>
-        <div v-show="activeTopLeftTab === 'dag'" ref="dagChartRef" class="flex-1 w-full relative z-0"></div>
-        <div v-show="activeTopLeftTab === 'geo'" class="flex-1 w-full relative z-0 flex flex-col">
-          <div ref="geoChartRef" class="flex-1 w-full" style="background-color: #0b1120;"></div>
+        <div v-show="activeTopLeftTab === 'dag'" ref="dagChartRef" class="flex-1 w-full relative z-0 min-h-0"></div>
+        <div v-show="activeTopLeftTab === 'geo'" class="flex-1 w-full relative z-0 flex flex-col min-h-0">
+          <div ref="geoChartRef" class="flex-1 w-full min-h-0" style="background-color: #0b1120;"></div>
           <!-- Geo Legend Overlay -->
           <div class="absolute bottom-4 left-4 text-[10px] text-slate-300 bg-slate-900/80 p-2.5 rounded-lg backdrop-blur-md border border-slate-700 pointer-events-none shadow-xl">
              <div class="font-bold text-slate-100 mb-1.5 border-b border-slate-600 pb-1">地理空间偏差说明</div>
@@ -188,15 +201,24 @@
 
       <!-- Box 2: Scatter & Map -->
       <div :class="[isShockMode ? 'border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.4)]' : 'border-slate-800 shadow-xl hover:shadow-2xl', 'col-span-8 row-span-1 bg-slate-900 rounded-2xl flex flex-col overflow-hidden relative group transition-all duration-700']">
-        <div class="px-5 py-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center z-10 relative overflow-hidden">
+        <div class="px-5 py-3 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center z-10 relative">
           <div v-if="isShockMode" class="absolute inset-0 bg-rose-600/20 w-full h-full animate-pulse blur-md"></div>
-          <h2 class="text-sm font-bold text-slate-200 z-10"><i class="fas fa-crosshairs text-neon-cyan mr-2" :class="{'text-rose-400': isShockMode}"></i>期望与实际离差评估 (Deviation Scatter)</h2>
+          <h2 class="text-sm font-bold text-slate-200 z-10 flex items-center group/scat relative">
+              <i class="fas fa-crosshairs text-neon-cyan mr-2" :class="{'text-rose-400': isShockMode}"></i>
+              期望与实际离差评估 (Deviation Scatter)
+              <i class="fas fa-info-circle ml-2 text-slate-500 text-xs cursor-help"></i>
+              <div class="absolute top-full left-0 mt-2 w-72 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/scat:opacity-100 group-hover/scat:scale-100 transition-all pointer-events-none z-50 font-normal">
+                  <div class="font-bold mb-1 text-neon-cyan">离差评估说明</div>
+                  <p class="text-slate-300 leading-relaxed mb-2">横轴代表模型对该项目的「信心预期值」，纵轴代表「实测偏差」。</p>
+                  <p class="text-slate-400">· <span class="text-emerald-400">正离差</span>：项目超常发挥，存在管理红利。<br>· <span class="text-rose-400">负离差</span>：效能流失，需排查非观测性干扰。</p>
+              </div>
+          </h2>
           <div class="flex space-x-3 items-center">
             <div class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">🎯 {{ targetAlias }}</div>
             <button @click="exportChart('scatter')" class="text-slate-400 hover:text-neon-cyan opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
           </div>
         </div>
-        <div ref="scatterChartRef" class="flex-1 w-full bg-[#0a192f] relative z-0"></div>
+        <div ref="scatterChartRef" class="flex-1 w-full bg-[#0a192f] relative z-0 min-h-0"></div>
         
         <!-- Impact Report Overlay for Shock Test -->
         <div v-if="isShockMode && impactReport" class="absolute top-14 right-4 w-64 bg-slate-900/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-2xl p-4 z-20 transition-all duration-500 scale-in-center">
@@ -205,7 +227,13 @@
             </h4>
             
             <div class="mb-4">
-                <div class="text-[10px] text-slate-400 mb-1">系统整体效能均值蒸发量 (VAR)</div>
+                <div class="text-[10px] text-slate-400 mb-1 flex items-center group/vartip relative cursor-help">
+                    系统整体效能均值蒸发量 (VAR)
+                    <i class="fas fa-info-circle ml-1 opacity-50"></i>
+                    <div class="absolute bottom-full left-0 mb-2 w-56 bg-white text-slate-800 text-[10px] p-2 rounded-lg shadow-2xl border border-slate-200 opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                        Value at Risk：本次演习中，极端冲击导致全大盘项目「预期得分」的加权平均下降值。
+                    </div>
+                </div>
                 <div class="text-2xl font-mono font-black" :class="impactReport.diff > 0 ? 'text-emerald-400' : 'text-rose-500'">
                     {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
                 </div>
@@ -239,26 +267,38 @@
       <!-- Box 3: PPC Density -->
       <div class="col-span-4 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
         <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
-          <h2 class="text-sm font-bold text-slate-700">
+          <h2 class="text-sm font-bold text-slate-700 flex items-center group/ppctip relative">
             <i class="fas fa-chart-area text-blue-500 mr-2"></i>后验预测检验 (PPC)
-            <span v-if="ppcScore" class="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">
+            <span v-if="ppcScore" class="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 cursor-help">
                拟合优度: {{ ppcScore }}%
             </span>
+            <div class="absolute top-full left-0 mt-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/ppctip:opacity-100 group-hover/ppctip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                <div class="font-bold mb-1 text-blue-400">PPC 拟合说明</div>
+                <p class="text-slate-300 leading-relaxed">衡量「模型生成的模拟分布」与「真实观测分布」的重合度。分值越高，模型对该领域业务逻辑的掌握度越真实。</p>
+            </div>
           </h2>
           <button @click="exportChart('ppc')" class="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
         </div>
-        <div ref="ppcChartRef" class="flex-1 w-full relative z-0"></div>
+        <div ref="ppcChartRef" class="flex-1 w-full relative z-0 min-h-0"></div>
       </div>
 
       <!-- Box 4: Forest/What-If Simulator -->
       <div class="col-span-8 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
-        <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
-          <h2 class="text-sm font-bold text-slate-700"><i class="fas fa-sliders-h text-emerald-500 mr-2"></i>归因分析与反事实推演沙盘 (What-If)</h2>
+        <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10 font-normal">
+          <h2 class="text-sm font-bold text-slate-700 flex items-center group/foresttip relative">
+              <i class="fas fa-sliders-h text-emerald-500 mr-2"></i>归因分析与反事实推演沙盘 (What-If)
+              <i class="fas fa-question-circle ml-1.5 text-slate-300 text-xs cursor-help"></i>
+              <div class="absolute top-full left-0 mt-2 w-72 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/foresttip:opacity-100 group-hover/foresttip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                  <div class="font-bold mb-1 text-emerald-400">归因指标说明</div>
+                  <p class="text-slate-300 leading-relaxed mb-2">左图展示各要素的「95% HDI 影响力区间」。若区间完全落在 0 线一侧，说明该因素对结果有显著贡献。</p>
+                  <p class="text-slate-400">您可以通过右侧滑块手动模拟“反事实”场景，观测要素波动对整体预期的实时影响。</p>
+              </div>
+          </h2>
           <button @click="exportChart('forest')" class="text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
         </div>
-        <div class="flex-1 flex w-full relative z-0">
+        <div class="flex-1 flex w-full relative z-0 min-h-0">
           <!-- Forest Chart -->
-          <div ref="forestChartRef" class="w-1/2 h-full border-r border-slate-100"></div>
+          <div ref="forestChartRef" class="w-1/2 h-full border-r border-slate-100 min-h-0"></div>
           
           <!-- What-If Sliders -->
           <div class="w-1/2 p-5 bg-slate-50/50 overflow-y-auto">
@@ -306,7 +346,7 @@
                          <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌模拟
                       </button>
                       <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip2:opacity-100 group-hover/tip2:scale-100 transition-all pointer-events-none z-50">
-                          <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 末日崩盘预案</div>
+                          <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 极端崩盘预案</div>
                           <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境参数同时重挫至 -3SD（系统性黑天鹅），引发全域网络风暴，以此提取大盘崩塌时依然抗跌的顶级韧性资产。</p>
                           <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                       </div>
