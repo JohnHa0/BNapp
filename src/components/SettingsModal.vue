@@ -76,7 +76,7 @@
                        </div>
                     </div>
 
-                    <!-- Ollama Specific Settings -->
+                    <!-- External API (Ollama) Settings -->
                     <div v-if="config.provider === 'ollama'" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm animate-fade-in">
                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Ollama 接口配置</label>
                        
@@ -94,6 +94,56 @@
                           <i v-else class="fas fa-link mr-2"></i>
                           {{ testingLlm ? '正在通讯探测中...' : '测试引擎连接并保存' }}
                        </button>
+                    </div>
+
+                    <!-- Built-in Light Model (GGUF) Settings -->
+                    <div v-if="config.provider === 'llama_cpp'" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm animate-fade-in">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">本地 GGUF 模型库管理</label>
+                        <div class="text-[11px] text-slate-500 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
+                            模型存放目录: <span class="font-mono text-indigo-600 bg-white px-1 py-0.5 rounded border border-slate-200">{{ localModelsDir }}</span>
+                        </div>
+                        
+                        <div v-if="localModels.length === 0" class="mb-5 flex flex-col items-center justify-center p-6 bg-rose-50 border border-rose-200 rounded-xl text-center">
+                            <i class="fas fa-box-open text-rose-300 text-3xl mb-3"></i>
+                            <div class="text-sm font-bold text-rose-700 mb-1">该目录下暂无任何 .gguf 模型文件</div>
+                            <div class="text-xs text-rose-600/80 mb-4">您可以自行下载诸如 Llama3.gguf/Qwen.gguf 放入该文件夹。</div>
+                            
+                            <div class="w-full text-left bg-white p-3 rounded-lg border border-rose-100 shadow-sm">
+                                <div class="text-[10px] font-bold text-slate-500 mb-2">或者在此处复制下载命令 (国内镜像):</div>
+                                <div class="font-mono text-[9px] bg-slate-800 text-emerald-400 p-2 rounded break-all select-all overflow-x-auto hide-scrollbar">
+                                    # Windows PowerShell 下载 (Qwen-1.5-1.8B-Chat约1GB)
+                                    <br>
+                                    Invoke-WebRequest -Uri "https://hf-mirror.com/Qwen/Qwen1.5-1.8B-Chat-GGUF/resolve/main/qwen1_5-1_8b-chat-q4_k_m.gguf" -OutFile "$HOME\.deepbayes\models\qwen1_5-1_8b-chat-q4_k_m.gguf"
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-else class="mb-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-2">挂载的战斗序列 (选择模型)</label>
+                            <div class="space-y-2">
+                                <div v-for="mod in localModels" :key="mod.name" @click="config.gguf_path = mod.path" :class="config.gguf_path === mod.path ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500' : 'border-slate-200 hover:border-indigo-300 bg-white'" class="flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all">
+                                    <div class="flex items-center overflow-hidden">
+                                        <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-3 shrink-0"><i class="fas fa-cube text-slate-500"></i></div>
+                                        <div class="truncate">
+                                            <div class="text-xs font-bold text-slate-800 truncate" :title="mod.name">{{ mod.name }}</div>
+                                            <div class="text-[10px] text-slate-400 mt-0.5">{{ mod.size_mb }} MB • GGUF</div>
+                                        </div>
+                                    </div>
+                                    <div v-if="config.gguf_path === mod.path" class="text-indigo-600 shrink-0 ml-2"><i class="fas fa-check-circle text-lg"></i></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-3">
+                            <button @click="fetchLocalModels" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-colors flex items-center justify-center">
+                                <i class="fas fa-sync-alt mr-2"></i> 重新扫描
+                            </button>
+                            <button @click="testLlmConnection" :disabled="!config.gguf_path && localModels.length > 0" class="flex-1 py-2 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg shadow transition-colors flex items-center justify-center">
+                                <i v-if="testingLlm" class="fas fa-spinner fa-spin mr-2"></i>
+                                <i v-else class="fas fa-save mr-2"></i>
+                                保存配置
+                            </button>
+                        </div>
                     </div>
                  </div>
               </div>
@@ -176,11 +226,14 @@ const dbStatus = ref('active');
 const config = ref({
    provider: 'ollama',
    ollama_host: 'http://127.0.0.1:11434',
-   ollama_model: 'qwen'
+   ollama_model: 'qwen',
+   gguf_path: ''
 });
 
 const testingLlm = ref(false);
 const ragFiles = ref([]);
+const localModels = ref([]);
+const localModelsDir = ref('~/.deepbayes/models');
 
 // Mock or Fetch existing config
 const fetchConfig = async () => {
@@ -216,6 +269,24 @@ const testLlmConnection = async () => {
         llmStatus.value = 'offline';
     } finally {
         testingLlm.value = false;
+    }
+};
+
+const fetchLocalModels = async () => {
+    try {
+        const res = await fetch('http://127.0.0.1:18521/api/settings/local_models');
+        if(res.ok) {
+            const data = await res.json();
+            localModels.value = data.models || [];
+            if(data.models_dir) localModelsDir.value = data.models_dir;
+            
+            // Auto-select first model if empty
+            if(!config.value.gguf_path && localModels.value.length > 0) {
+                config.value.gguf_path = localModels.value[0].path;
+            }
+        }
+    } catch(e) {
+        console.warn("Failed to fetch local GGUF models", e);
     }
 };
 
@@ -278,6 +349,7 @@ watch(() => props.show, (newVal) => {
     if(newVal) {
         fetchConfig();
         fetchRagFiles();
+        fetchLocalModels();
     }
 });
 

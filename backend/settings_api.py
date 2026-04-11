@@ -23,7 +23,7 @@ def load_config():
                 return json.load(f)
         except Exception:
             pass
-    return {"provider": "ollama", "ollama_host": "http://127.0.0.1:11434", "ollama_model": "qwen"}
+    return {"provider": "ollama", "ollama_host": "http://127.0.0.1:11434", "ollama_model": "qwen", "gguf_path": ""}
 
 def save_config(cfg):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -33,6 +33,7 @@ class LlmConfig(BaseModel):
     provider: str
     ollama_host: str
     ollama_model: str
+    gguf_path: str = ""
 
 @router.get("/get")
 def get_settings():
@@ -62,6 +63,26 @@ def test_llm(cfg: LlmConfig):
         return {"status": "success", "msg": "Built-in engine selected. Models will be loaded dynamically."}
 
     raise HTTPException(status_code=400, detail="Unknown provider")
+
+
+@router.get("/local_models")
+def list_local_models():
+    """Scan ~/.deepbayes/models for .gguf files"""
+    models_dir = os.path.join(os.path.expanduser("~"), ".deepbayes", "models")
+    os.makedirs(models_dir, exist_ok=True)
+    
+    gguf_files = []
+    for f in os.listdir(models_dir):
+        if f.endswith(".gguf"):
+            path = os.path.join(models_dir, f)
+            size_mb = os.path.getsize(path) / (1024 * 1024)
+            gguf_files.append({
+                "name": f,
+                "size_mb": round(size_mb, 1),
+                "path": path
+            })
+            
+    return {"models": gguf_files, "models_dir": models_dir}
 
 
 # ─────────────────── RAG & DATABASE ───────────────────
@@ -136,6 +157,7 @@ def upload_rag_file(files: list[UploadFile] = File(...)):
             doc = fitz.open(temp_path)
             for page in doc:
                 content += page.get_text() + "\n\n"
+            doc.close()  # VERY IMPORTANT FOR WINDOWS
         elif file.filename.endswith(".txt"):
             with open(temp_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
