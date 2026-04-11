@@ -9,10 +9,7 @@ jobs:
   release:
     strategy:
       fail-fast: false
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-      APPIMAGE_EXTRACT_AND_RUN: 1
-    matrix:
+      matrix:
         include:
           - platform: 'macos-latest'
             target: 'aarch64-apple-darwin'
@@ -26,6 +23,10 @@ jobs:
             target: 'x86_64-pc-windows-msvc'
             os_name: 'windows'
             binary_name: 'main-x86_64-pc-windows-msvc.exe'
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      APPIMAGE_EXTRACT_AND_RUN: 1
 
     runs-on: ${{ matrix.platform }}
     permissions:
