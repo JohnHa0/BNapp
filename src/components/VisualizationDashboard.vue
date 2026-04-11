@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full bg-ice-white p-6 relative flex flex-col font-sans overflow-hidden">
+  <div class="flex-1 min-h-0 bg-ice-white p-6 relative flex flex-col font-sans overflow-hidden">
     
     <!-- Meta-Editor Modal -->
     <div v-if="showMetaEditor" class="fixed inset-0 bg-deep-blue/40 backdrop-blur-sm flex justify-center items-center z-[60]">

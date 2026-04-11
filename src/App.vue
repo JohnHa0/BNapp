@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-ice-white font-sans text-slate-800">
+  <div class="h-screen overflow-hidden flex flex-col bg-ice-white font-sans text-slate-800">
     <!-- Navbar / Branding -->
     <header class="bg-deep-blue text-white shadow-md z-40 sticky top-0 flex justify-between items-center px-6 py-3 border-b border-indigo-500/30">
       <div class="flex items-center space-x-3">
@@ -43,9 +43,9 @@
       </div>
     </transition>
 
-    <main class="flex-1 overflow-auto relative">
+    <main class="flex-1 flex flex-col min-h-0 relative">
       <transition name="fade-slide" mode="out-in">
-        <DataImporter v-if="currentStep === 'import'" @health-check="openHealthCheck" />
+        <DataImporter v-if="currentStep === 'import'" class="overflow-y-auto flex-1 min-h-0" @health-check="openHealthCheck" />
         
         <div v-else-if="currentStep === 'inferencing'" class="absolute inset-0 flex flex-col justify-center items-center bg-ice-white bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white to-slate-50 z-10 p-10">
           <div class="relative w-24 h-24 flex items-center justify-center mb-8">
