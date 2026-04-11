@@ -94,7 +94,7 @@
 
                <!-- Executive Summary -->
                <div class="mb-5">
-                   <div class="text-xs font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-robot text-indigo-500 mr-1.5"></i>AI 辅助决策参谋纪要</div>
+                   <div class="text-xs font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-robot text-indigo-500 mr-1.5"></i>AI 辅助决策纪要</div>
                    <textarea readonly class="w-full h-32 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3 text-xs text-slate-700 leading-relaxed resize-none focus:outline-none custom-scrollbar" :value="executiveSummary"></textarea>
                </div>
 
@@ -205,7 +205,7 @@
             </h4>
             
             <div class="mb-4">
-                <div class="text-[10px] text-slate-400 mb-1">系统大盘效能均值蒸发量 (VAR)</div>
+                <div class="text-[10px] text-slate-400 mb-1">系统整体效能均值蒸发量 (VAR)</div>
                 <div class="text-2xl font-mono font-black" :class="impactReport.diff > 0 ? 'text-emerald-400' : 'text-rose-500'">
                     {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
                 </div>
@@ -285,21 +285,44 @@
             <!-- 极端冲击模拟器 -->
             <div v-if="editableCovariates.length > 0" class="mt-8 pt-5 border-t border-slate-200 hide-scrollbar">
                <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center">
-                 <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 金融级战损演习预案 (Shock Test)
+                 <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 金融级战损模拟预案 (Shock Test)
                </h3>
-               <div class="grid grid-cols-1 gap-2 mb-2">
-                  <button @click="applyShock('achilles')" class="w-full py-2 text-[11px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-all flex items-center justify-center group overflow-hidden relative">
-                     <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                     <i class="fas fa-crosshairs mr-2"></i> 🌪️ "阿喀琉斯"最痛点击穿演习
-                  </button>
-                  <button @click="applyShock('crash')" class="w-full py-2 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
-                     <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                     <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌演习
-                  </button>
-                  <button @click="applyShock('surge')" class="w-full py-2 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
-                     <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                     <i class="fas fa-rocket mr-2"></i> 🚀 系统性历史极值红利探测
-                  </button>
+               <div class="grid grid-cols-1 gap-3 mb-2">
+                  <div class="relative group/tip1">
+                      <button @click="applyShock('achilles')" class="w-full py-2.5 text-[11px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-all flex items-center justify-center group overflow-hidden relative">
+                         <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                         <i class="fas fa-crosshairs mr-2"></i> 🌪️ "阿喀琉斯"最痛点击穿模拟
+                      </button>
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip1:opacity-100 group-hover/tip1:scale-100 transition-all pointer-events-none z-50">
+                          <div class="font-bold mb-1 text-amber-400"><i class="fas fa-info-circle mr-1"></i> 局部打击预案</div>
+                          <p class="text-slate-300 leading-relaxed text-left font-normal">系统智能锁定 $\beta$ 权重最大的敏感要素，独对其施加 -3SD 暴击，探测某一致命要害断链时的系统防御底线。</p>
+                          <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                      </div>
+                  </div>
+                  
+                  <div class="relative group/tip2">
+                      <button @click="applyShock('crash')" class="w-full py-2.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                         <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                         <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌模拟
+                      </button>
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip2:opacity-100 group-hover/tip2:scale-100 transition-all pointer-events-none z-50">
+                          <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 末日崩盘预案</div>
+                          <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境参数同时重挫至 -3SD（系统性黑天鹅），引发全域网络风暴，以此提取大盘崩塌时依然抗跌的顶级韧性资产。</p>
+                          <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                      </div>
+                  </div>
+                  
+                  <div class="relative group/tip3">
+                      <button @click="applyShock('surge')" class="w-full py-2.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                         <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                         <i class="fas fa-rocket mr-2"></i> 🚀 系统性历史极值红利探测
+                      </button>
+                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip3:opacity-100 group-hover/tip3:scale-100 transition-all pointer-events-none z-50">
+                          <div class="font-bold mb-1 text-emerald-400"><i class="fas fa-chart-line mr-1"></i> 极值红利预案</div>
+                          <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境变量同时攀升至 +3SD 的巅峰状态，探测在最理想环境配置下，项目池能达到的理论效能天花板。</p>
+                          <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                      </div>
+                  </div>
                </div>
             </div>
             
@@ -964,7 +987,7 @@ const generateExecutiveSummary = () => {
         text += `\n✅ 【有效缓冲利好】幸而该项目的「${props.displayMapping[topPos[0].covariate] || topPos[0].covariate}」提供了强大的势能加持，构成了一定程度的抗压护城河。\n`;
     }
     
-    text += `\n【参谋决策建议】综合模型推演，建议战略决策层参考【${props.displayMapping[match1.node_name] || match1.node_name}】过往沉淀出的实操经验，提前针对风险拖累项配置专项资金或安保倾斜，即可逆转颓势。`;
+    text += `\n【辅助决策建议】综合模型推演，建议战略决策层参考【${props.displayMapping[match1.node_name] || match1.node_name}】过往沉淀出的实操经验，提前针对风险拖累项配置专项资金或安保倾斜，即可逆转颓势。`;
     
     executiveSummary.value = text;
 };
