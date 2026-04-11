@@ -219,49 +219,6 @@
           </div>
         </div>
         <div ref="scatterChartRef" class="flex-1 w-full bg-[#0a192f] relative z-0 min-h-0"></div>
-        
-        <!-- Impact Report Overlay for Shock Test -->
-        <div v-if="isShockMode && impactReport" class="absolute top-14 right-4 w-64 bg-slate-900/95 backdrop-blur-md rounded-xl border border-slate-700 shadow-2xl p-4 z-20 transition-all duration-500 scale-in-center">
-            <h4 class="text-[11px] font-bold text-amber-500 uppercase tracking-widest mb-3 flex items-center border-b border-slate-700 pb-2">
-                <i class="fas fa-clipboard-list mr-2"></i> <span v-if="shockTypeRun==='achilles'">极值敏感点击穿核算</span><span v-else-if="shockTypeRun==='crash'">全域末日坍塌核算</span><span v-else>极值红利复盘</span>
-            </h4>
-            
-            <div class="mb-4">
-                <div class="text-[10px] text-slate-400 mb-1 flex items-center group/vartip relative cursor-help">
-                    系统整体效能均值蒸发量 (VAR)
-                    <i class="fas fa-info-circle ml-1 opacity-50"></i>
-                    <div class="absolute bottom-full left-0 mb-2 w-56 bg-white text-slate-800 text-[10px] p-2 rounded-lg shadow-2xl border border-slate-200 opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
-                        Value at Risk：本次演习中，极端冲击导致全大盘项目「预期得分」的加权平均下降值。
-                    </div>
-                </div>
-                <div class="text-2xl font-mono font-black" :class="impactReport.diff > 0 ? 'text-emerald-400' : 'text-rose-500'">
-                    {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
-                </div>
-                <div v-if="shockTypeRun==='achilles'" class="text-[9px] text-amber-500/80 mt-1"><i class="fas fa-crosshairs"></i> 致命触发锚点: {{ impactReport.achillesName }}</div>
-            </div>
-            
-            <!-- Safe Assets -->
-            <div class="mb-3">
-                <div class="text-[10px] text-slate-500 font-bold mb-1.5"><i class="fas fa-shield-alt text-emerald-500 mr-1"></i>扛压绝境韧性资产 (Top Resilient)</div>
-                <div class="space-y-1 relative">
-                    <div v-for="(node, i) in impactReport.best" :key="i" class="flex justify-between items-center text-[10px] bg-emerald-900/20 px-2 py-1.5 rounded border border-emerald-500/20">
-                        <span class="text-slate-200 truncate pr-2 w-28">{{ displayMapping[node.name] || node.name }}</span>
-                        <span class="text-emerald-400 font-bold font-mono">+{{ node.postDeviation.toFixed(2) }}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Failures -->
-            <div>
-                <div class="text-[10px] text-slate-500 font-bold mb-1.5"><i class="fas fa-skull text-rose-500 mr-1"></i>脆弱性结构崩盘区 (Top Fragile)</div>
-                <div class="space-y-1 relative">
-                    <div v-for="(node, i) in impactReport.worst" :key="i" class="flex justify-between items-center text-[10px] bg-rose-900/20 px-2 py-1.5 rounded border border-rose-500/20">
-                        <span class="text-slate-200 truncate pr-2 w-28">{{ displayMapping[node.name] || node.name }}</span>
-                        <span class="text-rose-400 font-bold font-mono">{{ node.delta.toFixed(2) }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
       </div>
 
       <!-- Box 3: PPC Density -->
@@ -300,75 +257,148 @@
           <!-- Forest Chart -->
           <div ref="forestChartRef" class="w-1/2 h-full border-r border-slate-100 min-h-0"></div>
           
-          <!-- What-If Sliders -->
-          <div class="w-1/2 p-5 bg-slate-50/50 overflow-y-auto">
-            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4"><i class="fas fa-flask mr-1"></i> 调整要素观测值改变预期</h3>
+          <!-- What-If Sliders / Shock Report Panel -->
+          <div class="w-1/2 p-5 bg-slate-50/50 overflow-y-auto flex flex-col relative text-slate-800">
             
-            <div v-for="(covObj, index) in editableCovariates" :key="index" class="mb-5">
-              <div class="flex justify-between items-center mb-1">
-                <label class="text-sm font-bold text-slate-700">{{ covObj.alias }}</label>
-                <span class="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-1.5 rounded">{{ covObj.delta > 0 ? '+'+covObj.delta : covObj.delta }}</span>
-              </div>
-              <input type="range" min="-3" max="3" step="0.1" v-model.number="covObj.delta" @input="updateWhatIf" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
-              <div class="flex justify-between text-[10px] text-slate-400 mt-1">
-                <span>-3 SD (骤减)</span>
-                <span>原始均值</span>
-                <span>+3 SD (激增)</span>
-              </div>
+            <!-- Sliders Config View -->
+            <div v-if="!isShockMode" class="flex-1 animate-fade-in">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4"><i class="fas fa-flask mr-1"></i> 调整要素观测值改变预期</h3>
+                
+                <div v-for="(covObj, index) in editableCovariates" :key="index" class="mb-5 mt-1">
+                  <div class="flex justify-between items-center mb-1">
+                    <label class="text-sm font-bold text-slate-700">{{ covObj.alias }}</label>
+                    <span class="text-xs font-mono text-indigo-600 font-bold bg-indigo-50 px-1.5 rounded">{{ covObj.delta > 0 ? '+'+covObj.delta : covObj.delta }}</span>
+                  </div>
+                  <input type="range" min="-3" max="3" step="0.1" v-model.number="covObj.delta" @input="updateWhatIf" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                  <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                    <span>-3 SD (骤减)</span>
+                    <span>原始均值</span>
+                    <span>+3 SD (激增)</span>
+                  </div>
+                </div>
+
+                <div v-if="editableCovariates.length === 0" class="h-32 flex flex-col items-center justify-center text-slate-400">
+                   <i class="fas fa-info-circle text-2xl mb-2"></i>
+                   <span class="text-sm text-center">模型未包含任何环境变量数据<br>无法启用沙盘推演</span>
+                </div>
+                
+                <!-- 极端冲击模拟器 -->
+                <div v-if="editableCovariates.length > 0" class="mt-8 pt-5 border-t border-slate-200 hide-scrollbar shrink-0">
+                   <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center">
+                     <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 金融级战损模拟预案 (Shock Test)
+                   </h3>
+                   <div class="grid grid-cols-1 gap-3 mb-2">
+                      <div class="relative group/tip1">
+                          <button @click="applyShock('achilles')" class="w-full py-2.5 text-[11px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-all flex items-center justify-center group overflow-hidden relative">
+                             <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                             <i class="fas fa-crosshairs mr-2"></i> 🌪️ "阿喀琉斯"最痛点击穿模拟
+                          </button>
+                          <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip1:opacity-100 group-hover/tip1:scale-100 transition-all pointer-events-none z-50">
+                              <div class="font-bold mb-1 text-amber-400"><i class="fas fa-info-circle mr-1"></i> 局部打击预案</div>
+                              <p class="text-slate-300 leading-relaxed text-left font-normal">系统智能锁定 $\beta$ 权重最大的敏感要素，独对其施加 -3SD 暴击，探测某一致命要害断链时的系统防御底线。</p>
+                              <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                          </div>
+                      </div>
+                      
+                      <div class="relative group/tip2">
+                          <button @click="applyShock('crash')" class="w-full py-2.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                             <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                             <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌模拟
+                          </button>
+                          <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip2:opacity-100 group-hover/tip2:scale-100 transition-all pointer-events-none z-50">
+                              <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 极端崩盘预案</div>
+                              <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境参数同时重挫至 -3SD（系统性黑天鹅），引发全域网络风暴，以此提取大盘崩塌时依然抗跌的顶级韧性资产。</p>
+                              <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                          </div>
+                      </div>
+                      
+                      <div class="relative group/tip3">
+                          <button @click="applyShock('surge')" class="w-full py-2.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
+                             <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
+                             <i class="fas fa-rocket mr-2"></i> 🚀 系统性历史极值红利探测
+                          </button>
+                          <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip3:opacity-100 group-hover/tip3:scale-100 transition-all pointer-events-none z-50">
+                              <div class="font-bold mb-1 text-emerald-400"><i class="fas fa-chart-line mr-1"></i> 极值红利预案</div>
+                              <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境变量同时攀升至 +3SD 的巅峰状态，探测在最理想环境配置下，项目池能达到的理论效能天花板。</p>
+                              <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                          </div>
+                      </div>
+                   </div>
+                </div>
             </div>
 
-            <div v-if="editableCovariates.length === 0" class="h-full flex flex-col items-center justify-center text-slate-400">
-               <i class="fas fa-info-circle text-2xl mb-2"></i>
-               <span class="text-sm text-center">模型未包含任何环境变量数据<br>无法启用沙盘推演</span>
-            </div>
-            
-            <!-- 极端冲击模拟器 -->
-            <div v-if="editableCovariates.length > 0" class="mt-8 pt-5 border-t border-slate-200 hide-scrollbar">
-               <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center">
-                 <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 金融级战损模拟预案 (Shock Test)
+            <!-- Detailed Impact Report View (Shock Mode Only) -->
+            <div v-else class="flex-1 animate-scale-in flex flex-col text-slate-800 h-full">
+               <h3 class="text-xs font-black uppercase tracking-widest mb-4 flex items-center border-b pb-3" :class="shockTypeRun==='surge' ? 'text-emerald-600 border-emerald-200' : 'text-rose-600 border-rose-200'">
+                   <i class="fas fa-file-contract mr-2" :class="shockTypeRun==='surge' ? 'text-emerald-500' : 'text-rose-500'"></i>
+                   <span v-if="shockTypeRun==='achilles'">极值敏感点战损报告清算单</span>
+                   <span v-else-if="shockTypeRun==='crash'">全域末日坍塌系统性核算</span>
+                   <span v-else>极值红利天花板全盘复勘</span>
                </h3>
-               <div class="grid grid-cols-1 gap-3 mb-2">
-                  <div class="relative group/tip1">
-                      <button @click="applyShock('achilles')" class="w-full py-2.5 text-[11px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-all flex items-center justify-center group overflow-hidden relative">
-                         <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                         <i class="fas fa-crosshairs mr-2"></i> 🌪️ "阿喀琉斯"最痛点击穿模拟
-                      </button>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip1:opacity-100 group-hover/tip1:scale-100 transition-all pointer-events-none z-50">
-                          <div class="font-bold mb-1 text-amber-400"><i class="fas fa-info-circle mr-1"></i> 局部打击预案</div>
-                          <p class="text-slate-300 leading-relaxed text-left font-normal">系统智能锁定 $\beta$ 权重最大的敏感要素，独对其施加 -3SD 暴击，探测某一致命要害断链时的系统防御底线。</p>
-                          <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+               
+               <div v-if="impactReport" class="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+                  <!-- VAR Highlight -->
+                  <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-5 relative overflow-hidden">
+                      <div v-if="impactReport.diff < 0" class="absolute top-0 right-0 w-16 h-16 bg-rose-100 text-rose-500 rounded-bl-full flex items-center justify-center opacity-50"><i class="fas fa-arrow-down mb-4 ml-4"></i></div>
+                      <div v-else class="absolute top-0 right-0 w-16 h-16 bg-emerald-100 text-emerald-500 rounded-bl-full flex items-center justify-center opacity-50"><i class="fas fa-arrow-up mb-4 ml-4"></i></div>
+                      
+                      <div class="text-[11px] font-bold text-slate-500 mb-2 flex items-center group/vartip relative cursor-help">
+                          系统大盘效能均值变动 (VAR)
+                          <i class="fas fa-info-circle ml-1 opacity-50"></i>
+                          <div class="absolute bottom-full left-0 mb-2 w-56 bg-slate-800 text-white text-[10px] p-2 rounded-lg shadow-xl opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                              Value at Risk：本次演习中，环境冲击导致全大盘项目的效能预期得分的加权平均变动值。
+                          </div>
+                      </div>
+                      <div class="text-4xl font-mono font-black" :class="impactReport.diff > 0 ? 'text-emerald-500' : 'text-rose-600'">
+                          {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
+                      </div>
+                      <div v-if="shockTypeRun==='achilles'" class="text-[10px] font-bold text-amber-600 mt-2 bg-amber-50 px-2 py-1 rounded inline-block">
+                          <i class="fas fa-crosshairs"></i> 触发锚点因素: {{ impactReport.achillesName }} 
                       </div>
                   </div>
                   
-                  <div class="relative group/tip2">
-                      <button @click="applyShock('crash')" class="w-full py-2.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
-                         <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                         <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌模拟
-                      </button>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip2:opacity-100 group-hover/tip2:scale-100 transition-all pointer-events-none z-50">
-                          <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 极端崩盘预案</div>
-                          <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境参数同时重挫至 -3SD（系统性黑天鹅），引发全域网络风暴，以此提取大盘崩塌时依然抗跌的顶级韧性资产。</p>
-                          <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                  <div class="grid grid-cols-1 gap-4">
+                      <!-- Safe Assets Box -->
+                      <div class="bg-slate-50 p-3 rounded-lg border border-emerald-100">
+                          <div class="text-xs text-slate-700 font-bold mb-3 flex items-center pb-2 border-b border-emerald-200/50">
+                              <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>绝对扛压韧性资产 TOP 3
+                          </div>
+                          <div class="space-y-2">
+                              <div v-for="(node, i) in impactReport.best" :key="i" class="flex justify-between items-center text-xs bg-white px-3 py-2 rounded border border-slate-100 shadow-sm relative overflow-hidden">
+                                  <div class="absolute inset-y-0 w-1 left-0 bg-emerald-500"></div>
+                                  <span class="text-slate-800 font-bold truncate pr-3 pl-1">{{ displayMapping[node.name] || node.name }}</span>
+                                  <div class="flex flex-col items-end">
+                                     <span class="text-[10px] text-slate-400">冲击后正向结余</span>
+                                     <span class="text-emerald-600 font-bold font-mono">+{{ node.postDeviation.toFixed(3) }}</span>
+                                  </div>
+                              </div>
+                          </div>
                       </div>
-                  </div>
-                  
-                  <div class="relative group/tip3">
-                      <button @click="applyShock('surge')" class="w-full py-2.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
-                         <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                         <i class="fas fa-rocket mr-2"></i> 🚀 系统性历史极值红利探测
-                      </button>
-                      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip3:opacity-100 group-hover/tip3:scale-100 transition-all pointer-events-none z-50">
-                          <div class="font-bold mb-1 text-emerald-400"><i class="fas fa-chart-line mr-1"></i> 极值红利预案</div>
-                          <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境变量同时攀升至 +3SD 的巅峰状态，探测在最理想环境配置下，项目池能达到的理论效能天花板。</p>
-                          <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
+                      
+                      <!-- Failed Assets Box -->
+                      <div class="bg-slate-50 p-3 rounded-lg border border-rose-100">
+                          <div class="text-xs text-slate-700 font-bold mb-3 flex items-center pb-2 border-b border-rose-200/50">
+                              <i class="fas fa-skull text-rose-500 mr-2"></i>脆弱性崩盘重灾区 TOP 3
+                          </div>
+                          <div class="space-y-2">
+                              <div v-for="(node, i) in impactReport.worst" :key="i" class="flex justify-between items-center text-xs bg-white px-3 py-2 rounded border border-slate-100 shadow-sm relative overflow-hidden">
+                                  <div class="absolute inset-y-0 w-1 left-0 bg-rose-500"></div>
+                                  <span class="text-slate-800 font-bold truncate pr-3 pl-1">{{ displayMapping[node.name] || node.name }}</span>
+                                  <div class="flex flex-col items-end">
+                                     <span class="text-[10px] text-slate-400">效能绝对跌幅</span>
+                                     <span class="text-rose-600 font-bold font-mono">{{ node.delta.toFixed(3) }}</span>
+                                  </div>
+                              </div>
+                          </div>
                       </div>
                   </div>
                </div>
+               
+               <button @click="resetWhatIf" class="w-full mt-5 py-3 text-sm font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors shadow-lg hover:shadow-xl shrink-0 flex items-center justify-center group">
+                 <i class="fas fa-power-off text-rose-400 mr-2 group-hover:text-amber-400 transition-colors"></i> 结束推演，数据回退稳态
+               </button>
             </div>
-            
-            <button v-if="editableCovariates.length > 0" @click="resetWhatIf" class="w-full mt-3 py-2 text-xs font-bold text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors shadow-sm">
-              <i class="fas fa-undo-alt mr-1"></i> 恢复稳态数据快照
-            </button>
+
           </div>
         </div>
       </div>
