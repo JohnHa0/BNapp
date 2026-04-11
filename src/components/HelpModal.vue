@@ -12,7 +12,7 @@
             </div>
             <div>
               <h2 class="text-2xl font-black text-slate-900 tracking-tight flex items-center">
-                欢迎开启 DeepBayes 智能推演之旅 <span class="ml-4 text-[10px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full uppercase tracking-widest font-black border border-emerald-100">新手引航 v1.0.6</span>
+                欢迎开启 DeepBayes 智能推演之旅 <span class="ml-4 text-[10px] bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full uppercase tracking-widest font-black border border-emerald-100">新手引航 v1.0.5</span>
               </h2>
               <p class="text-xs text-slate-500 mt-1.5 font-medium">无需敲代码，只需五分钟，让您的业务表格变身具有“预测未来的大脑”。</p>
             </div>
