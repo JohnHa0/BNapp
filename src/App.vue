@@ -10,6 +10,9 @@
         </div>
       </div>
       <div class="flex items-center space-x-3">
+        <button @click="showSettingsModal = true" class="w-8 h-8 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-200 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-indigo-400/30" title="智库与大模型配置 (RAG Settings)">
+          <i class="fas fa-cog"></i>
+        </button>
         <button @click="showHelpGuide = true" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-indigo-200 hover:text-white transition-colors" title="帮助与使用手册">
           <i class="fas fa-question"></i>
         </button>
@@ -141,6 +144,9 @@
       </div>
     </transition>
 
+    <!-- RAG & LLM Settings Modal -->
+    <SettingsModal :show="showSettingsModal" @close="showSettingsModal = false" @config-saved="onConfigSaved" />
+
     <!-- 帮助与使用手册弹窗 -->
     <transition name="fade">
       <div v-if="showHelpGuide" class="fixed inset-0 bg-deep-blue/50 backdrop-blur-md flex justify-center items-center z-50" @click.self="showHelpGuide = false">
@@ -229,12 +235,14 @@ import { ref, onMounted } from 'vue';
 import DataImporter from './components/DataImporter.vue';
 import DataHealthCheck from './components/DataHealthCheck.vue';
 import VisualizationDashboard from './components/VisualizationDashboard.vue';
+import SettingsModal from './components/SettingsModal.vue';
 
 const isProd = import.meta.env.PROD;
 const API_BASE_URL = 'http://127.0.0.1:18521';
 
 const currentStep = ref('import');
 const showHealthCheckModal = ref(false);
+const showSettingsModal = ref(false);
 const backendReady = ref(false);  // 后端是否已就绪
 
 const rawTableData = ref([]);
@@ -319,6 +327,10 @@ const installGPUPack = async () => {
 onMounted(() => {
     waitForBackend();
 });
+
+const onConfigSaved = (config) => {
+    console.log("LLM Config Updated", config);
+};
 
 const openHealthCheck = (payload) => {
   rawTableData.value = payload.tableData;

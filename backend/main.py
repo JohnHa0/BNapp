@@ -122,6 +122,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
+import settings_api
 import pandas as pd
 import numpy as np
 import time
@@ -218,6 +219,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 挂载阶段三的设置与大模型 RAG 路由
+app.include_router(settings_api.router)
 
 @app.get("/api/health")
 async def health_check():
