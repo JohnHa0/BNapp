@@ -142,13 +142,39 @@
                             <button @click="fetchLocalModels" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-lg transition-colors flex items-center justify-center">
                                 <i class="fas fa-sync-alt mr-2"></i> 重新扫描
                             </button>
-                            <button @click="testLlmConnection" :disabled="!config.gguf_path && localModels.length > 0" class="flex-1 py-2 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg shadow transition-colors flex items-center justify-center">
-                                <i v-if="testingLlm" class="fas fa-spinner fa-spin mr-2"></i>
-                                <i v-else class="fas fa-save mr-2"></i>
-                                保存配置
-                            </button>
                         </div>
                     </div>
+                 </div>
+                 
+                 <!-- Advanced Configuration (Prompt and Temp) -->
+                 <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm mt-5 mb-5 animate-fade-in max-w-2xl mx-auto">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-4"><i class="fas fa-sliders-h mr-2"></i>引擎高阶指令与发散度配置</label>
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">人格与角色设定 (System Prompt) <span class="font-normal text-[10px] text-slate-400">引导大模型的输出口吻与焦点</span></label>
+                        <textarea v-model="config.system_prompt" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent custom-scrollbar leading-relaxed" placeholder="如：你现在是首席系统调优专家..."></textarea>
+                        <div class="flex justify-end mt-1">
+                            <button @click="resetPrompt" class="text-[9px] text-indigo-500 hover:text-indigo-700 underline">恢复默认场景设定</button>
+                        </div>
+                    </div>
+                    <div class="mb-5">
+                       <label class="flex justify-between text-xs font-bold text-slate-700 mb-2">
+                           <span>生成发散度 / 温度 (Temperature)</span>
+                           <span class="text-indigo-600 bg-indigo-50 px-2 rounded-sm font-mono">{{ config.temperature }}</span>
+                       </label>
+                       <input type="range" v-model.number="config.temperature" min="0" max="1" step="0.1" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                       <div class="flex justify-between text-[9px] text-slate-400 mt-1">
+                           <span>0.0 (最保守、严谨)</span>
+                           <span>1.0 (最具创造性、发散)</span>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div class="flex justify-center max-w-2xl mx-auto">
+                    <button @click="testLlmConnection" :disabled="config.provider === 'llama_cpp' && (!config.gguf_path || localModels.length === 0)" class="w-full py-3 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl shadow transition-colors flex items-center justify-center">
+                        <i v-if="testingLlm" class="fas fa-spinner fa-spin mr-2"></i>
+                        <i v-else class="fas fa-save mr-2"></i>
+                        保存全局配置与引擎指引
+                    </button>
                  </div>
               </div>
 
@@ -231,13 +257,21 @@ const config = ref({
    provider: 'ollama',
    ollama_host: 'http://127.0.0.1:11434',
    ollama_model: 'qwen',
-   gguf_path: ''
+   gguf_path: '',
+   system_prompt: '',
+   temperature: 0.3
 });
+
+const defaultPrompt = "你现在是 DeepBayes 平台的首席系统调优与安全风险专家。目前系统遭遇了一次参数扰动评估（压力测试）。请结合相关数据与下方提取的参考预案（如有），用专业、简洁的语言给出战术性的行动指导，避免废话。";
 
 const testingLlm = ref(false);
 const ragFiles = ref([]);
 const localModels = ref([]);
 const localModelsDir = ref('~/.deepbayes/models');
+
+const resetPrompt = () => {
+    config.value.system_prompt = defaultPrompt;
+};
 
 // Mock or Fetch existing config
 const fetchConfig = async () => {

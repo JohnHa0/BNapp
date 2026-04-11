@@ -17,14 +17,18 @@ router = APIRouter(prefix="/api/settings")
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".deepbayes", "config.json")
 os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
 
+DEFAULT_PROMPT = "你现在是 DeepBayes 平台的首席系统调优与安全风险专家。目前系统遭遇了一次参数扰动评估（压力测试）。请结合相关数据与下方提取的参考预案（如有），用专业、简洁的语言给出战术性的行动指导，避免废话。"
+
 def load_config():
+    cfg = {"provider": "ollama", "ollama_host": "http://127.0.0.1:11434", "ollama_model": "qwen", "gguf_path": "", "system_prompt": DEFAULT_PROMPT, "temperature": 0.3}
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                cfg.update(loaded)
         except Exception:
             pass
-    return {"provider": "ollama", "ollama_host": "http://127.0.0.1:11434", "ollama_model": "qwen", "gguf_path": ""}
+    return cfg
 
 def save_config(cfg):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -35,6 +39,8 @@ class LlmConfig(BaseModel):
     ollama_host: str
     ollama_model: str
     gguf_path: str = ""
+    system_prompt: str = ""
+    temperature: float = 0.3
 
 @router.get("/get")
 def get_settings():
@@ -237,26 +243,27 @@ def stream_decision(data: ShockData):
             logger.warning(f"RAG query failed: {e}")
             
     # 2. Build Prompt
-    prompt = f"""你现在是 DeepBayes 平台的首席安全与战略专家（CISO）。目前系统遭遇了一次极端安全冲击（压力测试）。
-冲击类型：{data.shock_type}
+    sys_prompt = cfg.get("system_prompt", "") or "你是 DeepBayes 平台的智能辅助决策终端。请分析系统传回的数据和文档知识进行作答。"
+    temperature = float(cfg.get("temperature", 0.3))
+    
+    user_prompt = f"""冲击类型：{data.shock_type}
 系统大盘整体破坏均值 (VAR)：{data.var_drop:.3f}
-触发此破坏的核心节点：{data.trigger_node}
-最脆弱的资产节点：{", ".join(data.top_fragile)}
-最能扛压的韧性资产：{", ".join(data.top_resilient)}
-
-请结合以上数据，给出战术性的行动指导，包括防守建议和资金调配规划。"""
+触发此变动的核心节点：{data.trigger_node}
+当前表现最差/受损最严重的节点：{", ".join(data.top_fragile)}
+当前表现最好/最具韧性的抗压节点：{", ".join(data.top_resilient)}"""
 
     if context:
-        prompt += f"\n\n【参考战略智库预案文献片段】：\n{context}\n\n请在你的回答中引用文献中的防卫建议（如果有的话）。"
+        user_prompt += f"\n\n【内挂私有库知识提取片段】：\n{context}\n\n请提取文献中有用信息以作为诊断参考。"
 
     # 3. Stream from LLM
     if cfg["provider"] == "ollama":
         url = f"{cfg['ollama_host'].rstrip('/')}/api/generate"
         payload = {
             "model": cfg["ollama_model"],
-            "prompt": prompt,
+            "system": sys_prompt,
+            "prompt": user_prompt,
             "stream": True,
-            "options": {"temperature": 0.3}
+            "options": {"temperature": temperature}
         }
         
         def ollama_stream():
@@ -293,15 +300,15 @@ def stream_decision(data: ShockData):
                 # Lazy load model (only when needed to save RAM)
                 llm = Llama(model_path=gguf_path, n_ctx=2048, verbose=False)
                 
-                # Instruction format adjustments for Qwen/Llama3 could be complex. Simply supplying the prompt usually falls back gracefully.
-                full_prompt = f"System: 你是系统安全防卫终端战略参谋。\nUser: {prompt}\nAssistant:"
+                # Manual formatting for instruct models. Simplified system+user concat
+                full_prompt = f"System: {sys_prompt}\nUser: {user_prompt}\nAssistant:"
                 
                 stream = llm.create_completion(
                     full_prompt,
                     max_tokens=600,
                     stop=["User:", "\n\n\n"],
                     stream=True,
-                    temperature=0.3
+                    temperature=temperature
                 )
                 for chunk in stream:
                     text = chunk.get("choices", [{}])[0].get("text", "")

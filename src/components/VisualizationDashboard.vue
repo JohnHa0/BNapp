@@ -255,10 +255,10 @@
         </div>
         <div class="flex-1 flex w-full relative z-0 min-h-0">
           <!-- Forest Chart -->
-          <div ref="forestChartRef" class="w-1/2 h-full border-r border-slate-100 min-h-0"></div>
+          <div v-show="!isShockMode" ref="forestChartRef" class="w-1/2 h-full border-r border-slate-100 min-h-0 shrink-0 transition-all duration-300"></div>
           
           <!-- What-If Sliders / Shock Report Panel -->
-          <div class="w-1/2 p-5 bg-slate-50/50 overflow-y-auto flex flex-col relative text-slate-800">
+          <div :class="isShockMode ? 'w-full' : 'w-1/2'" class="p-5 bg-slate-50/50 overflow-y-auto flex flex-col relative text-slate-800 shrink-0 transition-all duration-300">
             
             <!-- Sliders Config View -->
             <div v-if="!isShockMode" class="flex-1 animate-fade-in">
@@ -336,77 +336,82 @@
                    <span v-else>极值红利天花板全盘复勘</span>
                </h3>
                
-               <div v-if="impactReport" class="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-                  <!-- VAR Highlight -->
-                  <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-5 relative">
-                      <div v-if="impactReport.diff < 0" class="absolute top-0 right-0 w-16 h-16 bg-rose-100 text-rose-500 rounded-bl-full rounded-tr-xl flex items-center justify-center opacity-50"><i class="fas fa-arrow-down mb-4 ml-4"></i></div>
-                      <div v-else class="absolute top-0 right-0 w-16 h-16 bg-emerald-100 text-emerald-500 rounded-bl-full rounded-tr-xl flex items-center justify-center opacity-50"><i class="fas fa-arrow-up mb-4 ml-4"></i></div>
+               <div class="flex flex-1 overflow-hidden min-h-0 space-x-5">
+                   
+                   <!-- LEFT SIDE: Quantitative Data -->
+                   <div v-if="impactReport" class="w-1/2 flex flex-col overflow-y-auto pr-2 custom-scrollbar">
+                      <!-- VAR Highlight -->
+                      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-4 relative shrink-0">
+                          <div v-if="impactReport.diff < 0" class="absolute top-0 right-0 w-16 h-16 bg-rose-100 text-rose-500 rounded-bl-full rounded-tr-xl flex items-center justify-center opacity-50"><i class="fas fa-arrow-down mb-4 ml-4"></i></div>
+                          <div v-else class="absolute top-0 right-0 w-16 h-16 bg-emerald-100 text-emerald-500 rounded-bl-full rounded-tr-xl flex items-center justify-center opacity-50"><i class="fas fa-arrow-up mb-4 ml-4"></i></div>
+                          
+                          <div class="text-[11px] font-bold text-slate-500 mb-2 flex items-center group/vartip relative cursor-help">
+                              系统大盘效能均值变动 (VAR)
+                              <i class="fas fa-info-circle ml-1 opacity-50"></i>
+                              <div class="absolute top-full left-0 mt-2 w-56 bg-slate-800 text-white text-[10px] p-2 rounded-lg shadow-2xl border border-slate-700 opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                                  <div class="absolute bottom-full left-4 w-0 h-0 border-r-[6px] border-b-[6px] border-l-[6px] border-r-transparent border-l-transparent border-b-slate-800"></div>
+                                  Value at Risk：本次演习中，环境冲击导致全大盘项目的效能预期得分的加权平均变动值。
+                              </div>
+                          </div>
+                          <div class="text-4xl font-mono font-black relative z-10" :class="impactReport.diff > 0 ? 'text-emerald-500' : 'text-rose-600'">
+                              {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
+                          </div>
+                          <div v-if="shockTypeRun==='achilles'" class="text-[10px] font-bold text-amber-600 mt-2 bg-amber-50 px-2 py-1 rounded inline-block relative z-10">
+                              <i class="fas fa-crosshairs"></i> 触发锚点因素: {{ impactReport.achillesName }} 
+                          </div>
+                      </div>
                       
-                      <div class="text-[11px] font-bold text-slate-500 mb-2 flex items-center group/vartip relative cursor-help">
-                          系统大盘效能均值变动 (VAR)
-                          <i class="fas fa-info-circle ml-1 opacity-50"></i>
-                          <div class="absolute top-full left-0 mt-2 w-56 bg-slate-800 text-white text-[10px] p-2 rounded-lg shadow-2xl border border-slate-700 opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
-                              <div class="absolute bottom-full left-4 w-0 h-0 border-r-[6px] border-b-[6px] border-l-[6px] border-r-transparent border-l-transparent border-b-slate-800"></div>
-                              Value at Risk：本次演习中，环境冲击导致全大盘项目的效能预期得分的加权平均变动值。
+                      <div class="grid grid-cols-2 gap-3 shrink-0 flex-1 min-h-0">
+                          <!-- Safe Assets Box -->
+                          <div class="bg-slate-50 p-3 rounded-lg border border-emerald-100 flex flex-col">
+                              <div class="text-[11px] text-slate-700 font-bold mb-3 flex items-center pb-2 border-b border-emerald-200/50 shrink-0">
+                                  <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>绝对扛压韧性资产
+                              </div>
+                              <div class="space-y-2 overflow-y-auto custom-scrollbar pr-1 flex-1 min-h-0">
+                                  <div v-for="(node, i) in impactReport.best" :key="i" class="flex justify-between items-center text-[11px] bg-white px-2 py-1.5 rounded border border-slate-100 shadow-sm relative overflow-hidden">
+                                      <div class="absolute inset-y-0 w-1 left-0 bg-emerald-500"></div>
+                                      <span class="text-slate-800 font-bold truncate pl-2 max-w-[80px]" :title="displayMapping[node.name] || node.name">{{ displayMapping[node.name] || node.name }}</span>
+                                      <div class="flex flex-col items-end shrink-0">
+                                         <span class="text-[9px] text-slate-400">冲击后结余</span>
+                                         <span class="text-emerald-600 font-bold font-mono">+{{ node.postDeviation.toFixed(3) }}</span>
+                                      </div>
+                                  </div>
+                              </div>
                           </div>
-                      </div>
-                      <div class="text-4xl font-mono font-black relative z-10" :class="impactReport.diff > 0 ? 'text-emerald-500' : 'text-rose-600'">
-                          {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
-                      </div>
-                      <div v-if="shockTypeRun==='achilles'" class="text-[10px] font-bold text-amber-600 mt-2 bg-amber-50 px-2 py-1 rounded inline-block relative z-10">
-                          <i class="fas fa-crosshairs"></i> 触发锚点因素: {{ impactReport.achillesName }} 
-                      </div>
-                  </div>
-                  
-                  <div class="grid grid-cols-1 gap-4">
-                      <!-- Safe Assets Box -->
-                      <div class="bg-slate-50 p-3 rounded-lg border border-emerald-100">
-                          <div class="text-xs text-slate-700 font-bold mb-3 flex items-center pb-2 border-b border-emerald-200/50">
-                              <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>绝对扛压韧性资产 TOP 3
-                          </div>
-                          <div class="space-y-2">
-                              <div v-for="(node, i) in impactReport.best" :key="i" class="flex justify-between items-center text-xs bg-white px-3 py-2 rounded border border-slate-100 shadow-sm relative overflow-hidden">
-                                  <div class="absolute inset-y-0 w-1 left-0 bg-emerald-500"></div>
-                                  <span class="text-slate-800 font-bold truncate pr-3 pl-1">{{ displayMapping[node.name] || node.name }}</span>
-                                  <div class="flex flex-col items-end">
-                                     <span class="text-[10px] text-slate-400">冲击后正向结余</span>
-                                     <span class="text-emerald-600 font-bold font-mono">+{{ node.postDeviation.toFixed(3) }}</span>
+                          
+                          <!-- Failed Assets Box -->
+                          <div class="bg-slate-50 p-3 rounded-lg border border-rose-100 flex flex-col">
+                              <div class="text-[11px] text-slate-700 font-bold mb-3 flex items-center pb-2 border-b border-rose-200/50 shrink-0">
+                                  <i class="fas fa-skull text-rose-500 mr-2"></i>脆弱性崩盘区
+                              </div>
+                              <div class="space-y-2 overflow-y-auto custom-scrollbar pr-1 flex-1 min-h-0">
+                                  <div v-for="(node, i) in impactReport.worst" :key="i" class="flex justify-between items-center text-[11px] bg-white px-2 py-1.5 rounded border border-slate-100 shadow-sm relative overflow-hidden">
+                                      <div class="absolute inset-y-0 w-1 left-0 bg-rose-500"></div>
+                                      <span class="text-slate-800 font-bold truncate pl-2 max-w-[80px]" :title="displayMapping[node.name] || node.name">{{ displayMapping[node.name] || node.name }}</span>
+                                      <div class="flex flex-col items-end shrink-0">
+                                         <span class="text-[9px] text-slate-400">效能跌幅</span>
+                                         <span class="text-rose-600 font-bold font-mono">{{ node.delta.toFixed(3) }}</span>
+                                      </div>
                                   </div>
                               </div>
                           </div>
                       </div>
-                      
-                      <!-- Failed Assets Box -->
-                      <div class="bg-slate-50 p-3 rounded-lg border border-rose-100">
-                          <div class="text-xs text-slate-700 font-bold mb-3 flex items-center pb-2 border-b border-rose-200/50">
-                              <i class="fas fa-skull text-rose-500 mr-2"></i>脆弱性崩盘重灾区 TOP 3
-                          </div>
-                          <div class="space-y-2">
-                              <div v-for="(node, i) in impactReport.worst" :key="i" class="flex justify-between items-center text-xs bg-white px-3 py-2 rounded border border-slate-100 shadow-sm relative overflow-hidden">
-                                  <div class="absolute inset-y-0 w-1 left-0 bg-rose-500"></div>
-                                  <span class="text-slate-800 font-bold truncate pr-3 pl-1">{{ displayMapping[node.name] || node.name }}</span>
-                                  <div class="flex flex-col items-end">
-                                     <span class="text-[10px] text-slate-400">效能绝对跌幅</span>
-                                     <span class="text-rose-600 font-bold font-mono">{{ node.delta.toFixed(3) }}</span>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
+                   </div>
+                   
+                   <!-- RIGHT SIDE: AI War Room Decision Panel -->
+                   <div class="w-1/2 bg-slate-900 rounded-xl p-5 shadow-lg border border-slate-700 relative overflow-hidden flex flex-col h-full">
+                       <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-neon-cyan to-emerald-500"></div>
+                       <div class="flex items-center text-[11px] font-bold text-neon-cyan uppercase tracking-widest mb-3 shrink-0">
+                           <i class="fas fa-brain mr-2 animate-pulse mt-0.5"></i> 智库决策 (AI ASSISTANT)
+                           <span v-if="aiThinking" class="ml-2 text-slate-400 font-mono animate-pulse">...Retrieving Strategy...</span>
+                       </div>
+                       <div class="flex-1 overflow-y-auto custom-scrollbar text-[12px] text-slate-200 font-mono leading-relaxed prose prose-invert prose-p:my-1.5 prose-sm max-w-none" v-html="formattedAiDecision">
+                       </div>
+                   </div>
+                   
                </div>
                
-               <!-- AI War Room Decision Panel -->
-               <div class="mt-4 mb-3 bg-slate-900 rounded-xl p-4 shadow-lg border border-slate-700 relative overflow-hidden flex flex-col shrink-0 min-h-[120px] max-h-[200px]">
-                   <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-neon-cyan to-emerald-500"></div>
-                   <div class="flex items-center text-[10px] font-bold text-neon-cyan uppercase tracking-widest mb-2 shrink-0">
-                       <i class="fas fa-brain mr-2 animate-pulse"></i> 智库决策 (AI Assistant)
-                       <span v-if="aiThinking" class="ml-2 text-slate-400 font-mono animate-pulse">...Retrieving Strategy...</span>
-                   </div>
-                   <div class="flex-1 overflow-y-auto custom-scrollbar text-[11px] text-slate-300 font-mono leading-relaxed prose prose-invert prose-p:my-1 prose-sm" v-html="formattedAiDecision">
-                   </div>
-               </div>
-               
-               <button @click="resetWhatIf" class="w-full mt-2 py-3 text-sm font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors shadow-lg hover:shadow-xl shrink-0 flex items-center justify-center group">
+               <button @click="resetWhatIf" class="w-full mt-4 py-3 text-sm font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors shadow-lg hover:shadow-xl shrink-0 flex items-center justify-center group">
                  <i class="fas fa-power-off text-rose-400 mr-2 group-hover:text-amber-400 transition-colors"></i> 结束推演，数据回退稳态
                </button>
             </div>
