@@ -274,9 +274,40 @@ def stream_decision(data: ShockData):
                 
         return StreamingResponse(ollama_stream(), media_type="text/plain")
         
-    else:
-        # Dummy fallback for llama_cpp if not fully installed
-        def dummy_stream():
-            yield "【本地轻量引擎尚未安装或就绪】\n"
-            yield "系统目前使用 Ollama 作为主要算力后端。如果需要本地 CPU 推理引擎，请在设置中配置并等待下载。"
-        return StreamingResponse(dummy_stream(), media_type="text/plain")
+    elif cfg["provider"] == "llama_cpp":
+        def gguf_stream():
+            try:
+                from llama_cpp import Llama
+            except ImportError:
+                yield "【错误：尚未安装本地推理底层核心 (llama-cpp-python)】\n\n"
+                yield "由于架构原因，请在终端（需 C++ 编译环境或拉取预编译包）手工安装该组件：\n> pip install llama-cpp-python\n"
+                return
+                
+            gguf_path = cfg.get("gguf_path", "")
+            if not gguf_path or not os.path.exists(gguf_path):
+                yield "【模型错误：未找到指定的 GGUF 模型文件】\n请点击右上角齿轮 -> 本地 GGUF 库，选择并挂载一个您下载的实装模型。"
+                return
+                
+            yield "【正挂载核心，启用极耗算力的本地推理，请耐心等待...】\n\n"
+            try:
+                # Lazy load model (only when needed to save RAM)
+                llm = Llama(model_path=gguf_path, n_ctx=2048, verbose=False)
+                
+                # Instruction format adjustments for Qwen/Llama3 could be complex. Simply supplying the prompt usually falls back gracefully.
+                full_prompt = f"System: 你是系统安全防卫终端战略参谋。\nUser: {prompt}\nAssistant:"
+                
+                stream = llm.create_completion(
+                    full_prompt,
+                    max_tokens=600,
+                    stop=["User:", "\n\n\n"],
+                    stream=True,
+                    temperature=0.3
+                )
+                for chunk in stream:
+                    text = chunk.get("choices", [{}])[0].get("text", "")
+                    if text:
+                        yield text
+            except Exception as e:
+                yield f"\n[引擎矩阵推理发生崩溃: {str(e)}]"
+                
+        return StreamingResponse(gguf_stream(), media_type="text/plain")

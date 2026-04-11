@@ -30,6 +30,7 @@ We use `conda` to manage the Python environment.
 # Create the environment
 conda env create bnapp -f backend/environment.yml
 
+
 # Activate the environment
 conda activate bnapp-backend
 ```
@@ -147,10 +148,14 @@ netstat -ano | findstr 18521
 - **Real-time Engine Logs**: Frontend control-center streams live MCMC sampling progress directly from the Python sub-process.
 
 ## 推送更新
-git tag -d v1.0.2
-git push origin :refs/tags/v1.0.2
-git tag v1.0.2
-git push origin v1.0.2
+<!-- git tag -d v1.0.3
+git push origin :refs/tags/v1.0.3 -->
+git tag v1.0.3
+git push origin v1.0.3
+
+
+git tag -a v1.0.4 -m "DeepBayes v1.0.4: Advanced Strategic Simulator & UX Polish. 🛠️ 推演系统 (Achilles/Crash/Surge), 📊 战损核算 (VAR) 深度集成, 🧠 全量智库级 Tooltip, 🏗️ UI 稳定性优化 (ECharts Resize Fix)."
+git push origin master --tags
 ## 本地打包
 - 初始化 PowerShell 扩展：conda init powershell，重启终端以生效
 - 激活环境：conda activate bnapp-backend

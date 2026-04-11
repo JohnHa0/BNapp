@@ -307,10 +307,12 @@ const fetchRagFiles = async () => {
         const res = await fetch('http://127.0.0.1:18521/api/settings/rag/list');
         if(res.ok) {
             const data = await res.json();
-            ragFiles.value = data.files;
+            ragFiles.value = data.files || [];
+            dbStatus.value = 'ready'; // Mark DB as initialized if we can fetch
         }
     } catch(e) {
         console.warn("Failed to fetch RAG files", e);
+        dbStatus.value = 'offline';
     }
 };
 
