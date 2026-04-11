@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import uuid
 import datetime
@@ -83,6 +84,20 @@ def list_local_models():
             })
             
     return {"models": gguf_files, "models_dir": models_dir}
+
+@router.get("/open_models_dir")
+def open_models_dir():
+    """Open models directory in OS file explorer"""
+    models_dir = os.path.join(os.path.expanduser("~"), ".deepbayes", "models")
+    os.makedirs(models_dir, exist_ok=True)
+    import subprocess
+    if os.name == 'nt':
+        os.startfile(models_dir)
+    elif sys.platform == 'darwin':
+        subprocess.call(['open', models_dir])
+    else:
+        subprocess.call(['xdg-open', models_dir])
+    return {"status": "success"}
 
 
 # ─────────────────── RAG & DATABASE ───────────────────

@@ -99,8 +99,12 @@
                     <!-- Built-in Light Model (GGUF) Settings -->
                     <div v-if="config.provider === 'llama_cpp'" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm animate-fade-in">
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">本地 GGUF 模型库管理</label>
-                        <div class="text-[11px] text-slate-500 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
-                            模型存放目录: <span class="font-mono text-indigo-600 bg-white px-1 py-0.5 rounded border border-slate-200">{{ localModelsDir }}</span>
+                        <div class="flex items-center text-[11px] text-slate-500 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100 italic">
+                            <span>模型存放目录: </span>
+                            <span class="font-mono text-indigo-600 bg-white px-1 py-0.5 rounded border border-slate-200 mx-1">{{ localModelsDir }}</span>
+                            <button @click="openModelsDir" class="ml-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 w-6 h-6 rounded flex items-center justify-center transition-colors" title="在资源管理器中打开">
+                                <i class="far fa-folder-open"></i>
+                            </button>
                         </div>
                         
                         <div v-if="localModels.length === 0" class="mb-5 flex flex-col items-center justify-center p-6 bg-rose-50 border border-rose-200 rounded-xl text-center">
@@ -110,10 +114,10 @@
                             
                             <div class="w-full text-left bg-white p-3 rounded-lg border border-rose-100 shadow-sm">
                                 <div class="text-[10px] font-bold text-slate-500 mb-2">或者在此处复制下载命令 (国内镜像):</div>
-                                <div class="font-mono text-[9px] bg-slate-800 text-emerald-400 p-2 rounded break-all select-all overflow-x-auto hide-scrollbar">
+                                <div class="font-mono text-[9px] bg-slate-800 text-emerald-400 p-2 rounded break-all select-all overflow-x-auto hide-scrollbar leading-tight">
                                     # Windows PowerShell 下载 (Qwen-1.5-1.8B-Chat约1GB)
                                     <br>
-                                    Invoke-WebRequest -Uri "https://hf-mirror.com/Qwen/Qwen1.5-1.8B-Chat-GGUF/resolve/main/qwen1_5-1_8b-chat-q4_k_m.gguf" -OutFile "$HOME\.deepbayes\models\qwen1_5-1_8b-chat-q4_k_m.gguf"
+                                    New-Item -ItemType Directory -Force -Path "$HOME\.deepbayes\models"; Invoke-WebRequest -Uri "https://hf-mirror.com/Qwen/Qwen1.5-1.8B-Chat-GGUF/resolve/main/qwen1_5-1_8b-chat-q4_k_m.gguf" -OutFile "$HOME\.deepbayes\models\qwen1_5-1_8b-chat-q4_k_m.gguf"
                                 </div>
                             </div>
                         </div>
@@ -287,6 +291,14 @@ const fetchLocalModels = async () => {
         }
     } catch(e) {
         console.warn("Failed to fetch local GGUF models", e);
+    }
+};
+
+const openModelsDir = async () => {
+    try {
+        await fetch('http://127.0.0.1:18521/api/settings/open_models_dir');
+    } catch(e) {
+        // Ignore failure
     }
 };
 

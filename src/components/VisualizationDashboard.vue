@@ -399,7 +399,7 @@
                <div class="mt-4 mb-3 bg-slate-900 rounded-xl p-4 shadow-lg border border-slate-700 relative overflow-hidden flex flex-col shrink-0 min-h-[120px] max-h-[200px]">
                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-neon-cyan to-emerald-500"></div>
                    <div class="flex items-center text-[10px] font-bold text-neon-cyan uppercase tracking-widest mb-2 shrink-0">
-                       <i class="fas fa-brain mr-2 animate-pulse"></i> 智库参谋 (AI War Room)
+                       <i class="fas fa-brain mr-2 animate-pulse"></i> 智库决策 (AI Assistant)
                        <span v-if="aiThinking" class="ml-2 text-slate-400 font-mono animate-pulse">...Retrieving Strategy...</span>
                    </div>
                    <div class="flex-1 overflow-y-auto custom-scrollbar text-[11px] text-slate-300 font-mono leading-relaxed prose prose-invert prose-p:my-1 prose-sm" v-html="formattedAiDecision">
@@ -1019,7 +1019,7 @@ const requestAiDecision = async (shock_type, var_drop, trigger_node, top_fragile
         });
         
         if(!res.ok) {
-            aiDecisionText.value = "[参谋终端报错: 无法联系大模型引擎，请检查设置面板中的引擎状态]";
+            aiDecisionText.value = "[智能决策终端报错: 无法联系大模型引擎，请检查设置面板中的引擎状态]";
             aiThinking.value = false;
             return;
         }
