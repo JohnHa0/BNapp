@@ -448,6 +448,7 @@ const editingNode = ref(null);
 // Phase 3: AI War Room
 const aiDecisionText = ref("");
 const aiThinking = ref(false);
+let currentAiRequestController = null;
 
 const formattedAiDecision = computed(() => {
     // Simple markdown to HTML
@@ -1008,6 +1009,13 @@ const applyShock = (type) => {
 const requestAiDecision = async (shock_type, var_drop, trigger_node, top_fragile, top_resilient) => {
     aiDecisionText.value = "";
     aiThinking.value = true;
+    
+    // Abort any ongoing AI request
+    if (currentAiRequestController) {
+        currentAiRequestController.abort();
+    }
+    currentAiRequestController = new AbortController();
+    
     try {
         const payload = {
             shock_type,
@@ -1020,7 +1028,8 @@ const requestAiDecision = async (shock_type, var_drop, trigger_node, top_fragile
         const res = await fetch('http://127.0.0.1:18521/api/settings/llm/stream_decision', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: currentAiRequestController.signal
         });
         
         if(!res.ok) {
@@ -1037,18 +1046,34 @@ const requestAiDecision = async (shock_type, var_drop, trigger_node, top_fragile
             aiDecisionText.value += decoder.decode(value, { stream: true });
         }
     } catch(err) {
-        aiDecisionText.value = `[通信故障: ${err.message}]`;
+        if (err.name === 'AbortError') {
+            console.log('AI Generation aborted by user.');
+        } else {
+            aiDecisionText.value = `[通信故障: ${err.message}]`;
+        }
     } finally {
         aiThinking.value = false;
     }
 };
 
 const resetWhatIf = () => {
+    if (currentAiRequestController) {
+        currentAiRequestController.abort();
+        currentAiRequestController = null;
+    }
+    
     isShockMode.value = false;
     shockTypeRun.value = '';
     impactReport.value = null;
     editableCovariates.value.forEach(c => c.delta = 0);
     updateWhatIf();
+    
+    // Explicitly command echarts to recalculate bounding box after reappearing
+    nextTick(() => {
+        setTimeout(() => {
+            charts.value.forest?.resize();
+        }, 300); // Allow tailwind transition to finish settling
+    });
 };
 
 // --- BENCHMARK LOGIC ---
