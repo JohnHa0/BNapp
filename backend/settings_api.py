@@ -315,6 +315,10 @@ def stream_decision(data: ShockData):
                     if text:
                         yield text
             except Exception as e:
-                yield f"\n[引擎矩阵推理发生崩溃: {str(e)}]"
+                err_str = str(e)
+                if "1073741795" in err_str or "0xc000001d" in err_str.lower() or "illegal instruction" in err_str.lower():
+                    yield "\n[引擎矩阵推理崩溃：您的 CPU 架构较老，不支持 AVX2 指令集 (错误码 0xc000001d)]\n\n您下载的预编译核心必须依赖现代 CPU 的高速向量扩展支持。强烈建议您在右上角设置中切换回【Ollama 引擎连接】，借助更为兼容的第三方服务来执行本地大模型！"
+                else:
+                    yield f"\n[引擎矩阵推理发生崩溃: {err_str}]"
                 
         return StreamingResponse(gguf_stream(), media_type="text/plain")
