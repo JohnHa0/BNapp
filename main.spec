@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
+sys.setrecursionlimit(5000)
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
@@ -21,6 +23,39 @@ datas += copy_metadata('arviz')
 # 确保 pip 被完整打包进来，供 GPU 在线安装使用
 hiddenimports = collect_submodules('pip')
 datas += collect_data_files('pip')
+
+# ================= RAG / ChromaDB / PyMuPDF 依赖配置 =================
+datas += collect_data_files('chromadb')
+try:
+    datas += collect_data_files('onnxruntime')
+    datas += collect_data_files('tokenizers')
+except Exception:
+    pass
+datas += copy_metadata('chromadb')
+try:
+    datas += copy_metadata('hnswlib')
+    datas += copy_metadata('onnxruntime')
+    datas += copy_metadata('tokenizers')
+    datas += copy_metadata('pydantic')
+    datas += copy_metadata('fastapi')
+    datas += copy_metadata('uvicorn')
+except Exception:
+    pass
+
+hiddenimports += collect_submodules('chromadb')
+hiddenimports += collect_submodules('pydantic')
+hiddenimports += [
+    'fitz',  # PyMuPDF
+    'chromadb.telemetry.product.posthog',
+    'chromadb.api.segment',
+    'chromadb.db.impl.sqlite',
+    'hnswlib',
+    'onnxruntime',
+    'tokenizers',
+    'uvicorn',
+    'fastapi'
+]
+# ===================================================================
 
 a = Analysis(
     ['backend/main.py'],
