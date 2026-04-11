@@ -338,21 +338,22 @@
                
                <div v-if="impactReport" class="flex-1 overflow-y-auto pr-1 custom-scrollbar">
                   <!-- VAR Highlight -->
-                  <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-5 relative overflow-hidden">
-                      <div v-if="impactReport.diff < 0" class="absolute top-0 right-0 w-16 h-16 bg-rose-100 text-rose-500 rounded-bl-full flex items-center justify-center opacity-50"><i class="fas fa-arrow-down mb-4 ml-4"></i></div>
-                      <div v-else class="absolute top-0 right-0 w-16 h-16 bg-emerald-100 text-emerald-500 rounded-bl-full flex items-center justify-center opacity-50"><i class="fas fa-arrow-up mb-4 ml-4"></i></div>
+                  <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-5 relative">
+                      <div v-if="impactReport.diff < 0" class="absolute top-0 right-0 w-16 h-16 bg-rose-100 text-rose-500 rounded-bl-full rounded-tr-xl flex items-center justify-center opacity-50"><i class="fas fa-arrow-down mb-4 ml-4"></i></div>
+                      <div v-else class="absolute top-0 right-0 w-16 h-16 bg-emerald-100 text-emerald-500 rounded-bl-full rounded-tr-xl flex items-center justify-center opacity-50"><i class="fas fa-arrow-up mb-4 ml-4"></i></div>
                       
                       <div class="text-[11px] font-bold text-slate-500 mb-2 flex items-center group/vartip relative cursor-help">
                           系统大盘效能均值变动 (VAR)
                           <i class="fas fa-info-circle ml-1 opacity-50"></i>
-                          <div class="absolute bottom-full left-0 mb-2 w-56 bg-slate-800 text-white text-[10px] p-2 rounded-lg shadow-xl opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                          <div class="absolute top-full left-0 mt-2 w-56 bg-slate-800 text-white text-[10px] p-2 rounded-lg shadow-2xl border border-slate-700 opacity-0 scale-90 group-hover/vartip:opacity-100 group-hover/vartip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                              <div class="absolute bottom-full left-4 w-0 h-0 border-r-[6px] border-b-[6px] border-l-[6px] border-r-transparent border-l-transparent border-b-slate-800"></div>
                               Value at Risk：本次演习中，环境冲击导致全大盘项目的效能预期得分的加权平均变动值。
                           </div>
                       </div>
-                      <div class="text-4xl font-mono font-black" :class="impactReport.diff > 0 ? 'text-emerald-500' : 'text-rose-600'">
+                      <div class="text-4xl font-mono font-black relative z-10" :class="impactReport.diff > 0 ? 'text-emerald-500' : 'text-rose-600'">
                           {{ impactReport.diff > 0 ? '+' : '' }}{{ impactReport.diff.toFixed(3) }}
                       </div>
-                      <div v-if="shockTypeRun==='achilles'" class="text-[10px] font-bold text-amber-600 mt-2 bg-amber-50 px-2 py-1 rounded inline-block">
+                      <div v-if="shockTypeRun==='achilles'" class="text-[10px] font-bold text-amber-600 mt-2 bg-amber-50 px-2 py-1 rounded inline-block relative z-10">
                           <i class="fas fa-crosshairs"></i> 触发锚点因素: {{ impactReport.achillesName }} 
                       </div>
                   </div>
