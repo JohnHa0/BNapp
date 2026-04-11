@@ -123,7 +123,7 @@
                        <li><strong class="text-indigo-600">第一行必须全都是标题</strong>（比如：省份、城市、资金投入、绩效得分）。</li>
                        <li><strong class="text-indigo-600">必须有一个“目标列 (Y)”</strong>，必须全是数字，它是您最后想评估的那个大结果。不能有空着的格子！</li>
                        <li><strong class="text-indigo-600">如果想用地图</strong>，必须包含名为“经度坐标”和“纬度坐标”的两列数字。</li>
-                       <li><strong class="text-indigo-600">您可以下载样例模板或者预置行业数据查看数据结构格式。</li>
+                       <li>您可以下载<strong class="text-indigo-600">样例模板或者预置行业数据</strong>查看数据结构格式。</li>
                      </ul>
                    </div>
                  </div>
