@@ -61,6 +61,7 @@ npm run dev
 ### Running the Backend
 
 ```bash
+conda activate bnapp-backend
 
 cd backend && python main.py
 
@@ -70,7 +71,7 @@ uvicorn main:app --reload
 ```
 
 ### Running the Tauri App
-
+决策中
 ```bash
 npm run tauri dev
 ```
