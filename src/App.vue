@@ -1,27 +1,91 @@
 <template>
   <div class="h-screen overflow-hidden flex flex-col bg-ice-white font-sans text-slate-800">
-    <!-- Navbar / Branding -->
-    <header class="bg-deep-blue text-white shadow-md z-40 sticky top-0 flex justify-between items-center px-6 py-3 border-b border-indigo-500/30">
-      <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-md bg-gradient-to-tr from-indigo-500 to-neon-cyan flex items-center justify-center font-black text-xl shadow-[0_0_10px_rgba(0,240,255,0.4)]">D</div>
+    <!-- 全局导航栏 -->
+    <header class="bg-[#0b1121] text-white z-40 sticky top-0 flex items-center px-8 py-0 border-b border-white/5 shadow-2xl shadow-black/20">
+      <!-- 缓慢漂移的环境光效 -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] animate-[drift_12s_ease-in-out_infinite]"></div>
+        <div class="absolute -bottom-32 -right-16 w-80 h-80 bg-cyan-500/8 rounded-full blur-[100px] animate-[drift_15s_ease-in-out_infinite_reverse]"></div>
+      </div>
+      <!-- 背景微纹点阵 -->
+      <div class="absolute inset-0 opacity-[0.04]" style="background-image: radial-gradient(circle at 1px 1px, rgba(99,102,241,0.8) 1px, transparent 0); background-size: 20px 20px;"></div>
+      <!-- 浮动微粒子 -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+        <div class="absolute w-1 h-1 bg-indigo-400/60 rounded-full top-1/4 left-[15%] animate-[floatUp_8s_ease-in-out_infinite]"></div>
+        <div class="absolute w-[3px] h-[3px] bg-cyan-400/50 rounded-full top-1/3 left-[35%] animate-[floatUp_11s_ease-in-out_infinite_1s]"></div>
+        <div class="absolute w-[2px] h-[2px] bg-indigo-300/40 rounded-full top-1/2 left-[55%] animate-[floatUp_9s_ease-in-out_infinite_2s]"></div>
+        <div class="absolute w-1 h-1 bg-cyan-300/50 rounded-full top-[30%] left-[75%] animate-[floatUp_13s_ease-in-out_infinite_0.5s]"></div>
+        <div class="absolute w-[2px] h-[2px] bg-indigo-500/40 rounded-full top-[20%] left-[90%] animate-[floatUp_10s_ease-in-out_infinite_3s]"></div>
+      </div>
+      <!-- 底部动态发光条 -->
+      <div class="absolute inset-x-0 bottom-0 h-[2px]">
+        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent opacity-30 blur-sm animate-[glowShift_4s_ease-in-out_infinite]"></div>
+      </div>
+      <!-- 角落装饰 -->
+      <div class="absolute top-0 left-0 w-3 h-3 border-t-[2px] border-l-[2px] border-indigo-500/20 rounded-tl"></div>
+      <div class="absolute top-0 right-0 w-3 h-3 border-t-[2px] border-r-[2px] border-cyan-500/20 rounded-tr"></div>
+      
+      <!-- 左侧：品牌 -->
+      <div class="flex items-center gap-5 py-4 relative z-10">
+        <!-- Logo 徽标 -->
+        <div class="relative shrink-0 group/logo">
+          <!-- 多层辉光 -->
+          <div class="absolute -inset-3 rounded-2xl bg-gradient-to-br from-indigo-500/15 to-cyan-500/10 blur-2xl animate-[pulseGlow_4s_ease-in-out_infinite]"></div>
+          <div class="absolute -inset-2 rounded-2xl bg-gradient-to-br from-indigo-600/25 to-cyan-500/15 blur-xl group-hover/logo:blur-2xl transition-all duration-700"></div>
+          <!-- 主体 -->
+          <div class="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-cyan-500 flex items-center justify-center shadow-2xl shadow-indigo-500/30 ring-1 ring-white/10 overflow-hidden group-hover/logo:scale-105 transition-transform duration-500">
+            <div class="absolute inset-0 bg-gradient-to-tr from-indigo-600/50 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent translate-y-[60%] group-hover/logo:translate-y-[0%] transition-transform duration-700"></div>
+            <span class="relative text-2xl font-black tracking-tighter" style="font-family: 'Inter', sans-serif; background: linear-gradient(180deg, #e0f2fe, #ffffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 8px rgba(99,102,241,0.4));">B</span>
+          </div>
+          <!-- 状态指示点 -->
+          <div class="absolute -top-1 -right-1">
+            <div class="w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#0b1121] shadow-lg shadow-emerald-400/50 relative">
+              <div class="absolute inset-0 rounded-full bg-emerald-400 animate-[pulse-dot_2s_ease-in-out_infinite]"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 品牌文字 -->
         <div>
-          <h1 class="text-xl font-bold tracking-wide">DeepBayes <span class="font-normal text-indigo-200 text-sm ml-2">通用多层概率评估系统</span></h1>
-          <p class="text-xs text-indigo-300 -mt-1 tracking-wider uppercase">Hierarchical Bayesian Inference Engine</p>
+          <div class="flex items-baseline gap-3">
+            <h1 class="group/title relative">
+              <span class="text-xl font-extrabold tracking-tight" style="font-family: 'Inter', 'Segoe UI', sans-serif;">
+                <span class="text-white">Deep</span>
+                <span class="bg-gradient-to-r from-indigo-400 via-cyan-400 to-indigo-300 bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradientShift_4s_ease-in-out_infinite]">Bayes</span>
+              </span>
+              <!-- 标题底部辉光 -->
+              <span class="absolute -bottom-1 left-0 w-full h-px bg-gradient-to-r from-indigo-500/40 via-cyan-400/40 to-transparent opacity-0 group-hover/title:opacity-100 transition-opacity duration-500"></span>
+            </h1>
+            <span class="text-sm font-semibold text-slate-400 hidden md:inline tracking-wide"><span class="inline-block w-1 h-1 rounded-full bg-indigo-400/60 mr-2 align-middle shadow-sm shadow-indigo-400/30"></span>贝叶斯层次网络分析平台</span>
+          </div>
+          <div class="flex items-center gap-2.5 mt-1.5">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="systemInfo ? 'bg-emerald-400' : 'bg-slate-600'" style="animation-duration: 1.5s;"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2" :class="systemInfo ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-500'"></span>
+            </span>
+            <span class="text-[11px] text-slate-500 font-medium tracking-wide">{{ systemInfo ? '推理引擎就绪' : '引擎启动中...' }}</span>
+          </div>
         </div>
       </div>
-      <div class="flex items-center space-x-3">
-        <button @click="showSettingsModal = true" class="w-8 h-8 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-200 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-indigo-400/30" title="智库与大模型配置 (RAG Settings)">
-          <i class="fas fa-cog"></i>
-        </button>
-        <button @click="showHelpGuide = true" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-indigo-200 hover:text-white transition-colors" title="帮助与使用手册">
-          <i class="fas fa-question"></i>
-        </button>
-        <span v-if="currentSamplingMode === 'fast'" class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/50 text-xs font-semibold text-amber-400 flex items-center shadow-inner">
-          <i class="fas fa-bolt mr-1.5"></i> 快速预览
+      
+      <!-- 右侧：操作区 -->
+      <div class="flex items-center gap-2 ml-auto relative z-10">
+        <span v-if="currentSamplingMode === 'fast'" class="h-7 px-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] font-semibold text-amber-400 flex items-center gap-1.5">
+          <i class="fas fa-bolt text-[10px]"></i>快速
         </span>
-        <span class="px-2.5 py-1 rounded bg-indigo-900/60 border border-indigo-700/50 text-xs font-semibold text-neon-cyan flex items-center shadow-inner">
-          <span class="w-2 h-2 rounded-full bg-neon-cyan animate-pulse mr-2 shadow-[0_0_5px_#00f0ff]"></span> v1.0.6 Pro
-        </span>
+        <div class="w-px h-5 bg-white/10 mx-1"></div>
+        <button @click="showHelpGuide = true" class="h-9 px-3.5 text-[12px] font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all flex items-center gap-2 group relative overflow-hidden">
+          <span class="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+          <i class="fas fa-book-open relative text-slate-500 group-hover:text-indigo-300 transition-colors"></i>
+          <span class="relative">使用手册</span>
+        </button>
+        <button @click="showSettingsModal = true" class="h-9 px-3.5 text-[12px] font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all flex items-center gap-2 group relative overflow-hidden">
+          <span class="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/5 to-indigo-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></span>
+          <i class="fas fa-sliders-h relative text-slate-500 group-hover:text-indigo-300 transition-colors"></i>
+          <span class="relative">设置</span>
+        </button>
       </div>
     </header>
 
@@ -37,11 +101,11 @@
             <i class="fas fa-atom text-2xl text-neon-cyan animate-pulse"></i>
           </div>
         </div>
-        <h2 class="text-xl font-bold text-white mb-3 tracking-wide">推理引擎预热中</h2>
-        <p class="text-sm text-slate-400 mb-6 max-w-sm text-center leading-relaxed">正在启动 PyMC 贝叶斯核心与概率张量图编译器，首次加载约需 5-10 秒...</p>
+        <h2 class="text-xl font-bold text-white mb-3 tracking-wide">分析引擎启动中</h2>
+        <p class="text-sm text-slate-400 mb-6 max-w-sm text-center leading-relaxed">正在初始化分析引擎，首次启动约需 5-10 秒...</p>
         <div class="flex items-center space-x-2 bg-white/5 px-4 py-2 rounded-full border border-white/10">
           <span class="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse"></span>
-          <span class="text-xs font-mono text-slate-300">Initializing FastAPI Backend Engine...</span>
+          <span class="text-xs font-mono text-slate-300">正在连接分析计算服务...</span>
         </div>
       </div>
     </transition>
@@ -56,12 +120,12 @@
             <div class="absolute inset-2 rounded-full border-b-4 border-indigo-600 animate-spin opacity-60" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
             <i class="fas fa-brain text-4xl text-deep-blue"></i>
           </div>
-          <h2 class="text-2xl font-black text-deep-blue tracking-tight mb-8">深度贝叶斯网络推演运算中...</h2>
+          <h2 class="text-2xl font-black text-deep-blue tracking-tight mb-8">正在分析数据规律，为您生成决策洞见...</h2>
           
           <!-- Progress Bar -->
           <div class="w-full max-w-2xl bg-white p-6 rounded-2xl shadow-xl border border-slate-200">
              <div class="flex justify-between text-xs font-bold text-slate-500 mb-2">
-                 <span>算力推进状态</span>
+                 <span>分析推进状态</span>
                  <span class="text-indigo-600">{{ loadingProgress.toFixed(0) }}%</span>
              </div>
              <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-6">
@@ -90,6 +154,19 @@
           :raw-table-data="rawTableData"
           :target-variable="currentTarget"
           @reset="currentStep = 'import'"
+          @open-decision="currentStep = 'decision'"
+          @live-data="(data) => { if (data) { livePerformanceData = data.performanceData; liveCovariates = data.covariates; } else { livePerformanceData = null; liveCovariates = null; } }"
+        />
+        <DecisionCenter
+          v-else-if="currentStep === 'decision'"
+          :modelResults="inferenceResults"
+          :livePerformanceData="livePerformanceData"
+          :liveCovariates="liveCovariates"
+          :hierarchy-schema="currentHierarchy"
+          :display-mapping="currentDisplayMapping"
+          :raw-table-data="rawTableData"
+          :target-variable="currentTarget"
+          @back="currentStep = 'dashboard'"
         />
       </transition>
     </main>
@@ -110,18 +187,20 @@
       </button>
     </div>
 
-    <!-- Global Footer -->
-    <footer class="bg-white border-t border-slate-200 py-2 px-6 flex justify-between items-center text-xs text-slate-500 z-40">
-      <div>
-        &copy; 2026 DeepBayes Advanced Analytics. All rights reserved @ZR.
-      </div>
-      <div class="flex space-x-6">
-        <span class="flex items-center">
-          <i :class="systemInfo ? 'text-emerald-500 fas fa-server' : 'text-slate-300 fas fa-sync fa-spin'" class="mr-1.5"></i> 
-          Backend: {{ systemInfo ? 'Connected' : 'Connecting...' }}
+    <!-- 底部状态栏 -->
+    <footer class="bg-white border-t border-slate-200 py-1.5 px-6 flex justify-between items-center text-[10px] text-slate-400 z-40">
+      <span class="flex items-center gap-2">
+        <span class="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
+        DeepBayes v1.0.6
+      </span>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full" :class="systemInfo ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-slate-300'"></span>
+          {{ systemInfo ? '引擎已连接' : '连接中...' }}
         </span>
-        <span v-if="systemInfo" class="flex items-center"><i class="fas fa-rocket mr-1.5 text-indigo-500"></i> JAX Engine: {{ systemInfo.backend }}</span>
-        <span class="flex items-center"><i class="fas fa-layer-group mr-1.5 text-blue-500"></i> Max MCMC Chains: 4</span>
+        <span v-if="systemInfo" class="flex items-center gap-1 text-slate-300">
+          <i class="fas fa-microchip"></i>{{ systemInfo.backend }}
+        </span>
       </div>
     </footer>
 
@@ -178,6 +257,7 @@ import DataHealthCheck from './components/DataHealthCheck.vue';
 import VisualizationDashboard from './components/VisualizationDashboard.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import HelpModal from './components/HelpModal.vue';
+import DecisionCenter from './components/DecisionCenter.vue';
 
 const isProd = import.meta.env.PROD;
 const API_BASE_URL = 'http://127.0.0.1:18521';
@@ -191,6 +271,8 @@ const rawTableData = ref([]);
 const currentHierarchy = ref([]);
 const currentTarget = ref(null);
 const inferenceResults = ref(null);
+const livePerformanceData = ref(null);
+const liveCovariates = ref(null);
 const currentDisplayMapping = ref({});
 const currentSamplingMode = ref('fast');
 const currentCustomDraws = ref(500);
@@ -291,8 +373,8 @@ const startInference = async (cleanSchema) => {
   
   loadingProgress.value = 0;
   loadingTips.value = [
-    { id: 1, time: '0.0s', text: '正在初始化贝叶斯有向无环图 (DAG) 引擎...', status: 'done' },
-    { id: 2, time: '...', text: '编译张量核心及构建对数似然梯度映射...', status: 'loading' }
+    { id: 1, time: '0.0s', text: '构建业务层级网络结构...', status: 'done' },
+    { id: 2, time: '...', text: '解析变量间的影响关系...', status: 'loading' }
   ];
 
   const startTime = Date.now();
@@ -304,12 +386,12 @@ const startInference = async (cleanSchema) => {
     if(loadingProgress.value > 30 && loadingTips.value.length === 2) {
        loadingTips.value[1].status = 'done';
        loadingTips.value[1].time = elapsed;
-       loadingTips.value.push({ id: 3, time: '...', text: '启动 MCMC NUTS 并行马尔可夫链抽样 (耗时最长)...', status: 'loading' });
+       loadingTips.value.push({ id: 3, time: '...', text: '运行贝叶斯概率推断（最耗时环节）...', status: 'loading' });
     }
     if(loadingProgress.value > 65 && !loadingTips.value.find(t => t.id === 4)) {
        const lastLoader = loadingTips.value.find(t => t.status === 'loading');
        if(lastLoader) { lastLoader.status = 'done'; lastLoader.time = elapsed; }
-       loadingTips.value.push({ id: 4, time: '...', text: '核对 R_hat 收敛度并提取后验预测核密度 (PPC)...', status: 'loading' });
+       loadingTips.value.push({ id: 4, time: '...', text: '验证模型可信度并提取关键洞察...', status: 'loading' });
     }
   }, 400);
 
@@ -358,7 +440,7 @@ const startInference = async (cleanSchema) => {
         lastLoader.status = 'done';
         lastLoader.time = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
     }
-    loadingTips.value.push({ id: 5, time: '完成', text: '参数矩阵装填完毕，即将开启全息控制台！', status: 'done' });
+    loadingTips.value.push({ id: 5, time: '完成', text: '分析完成！正在为您呈现决策支撑视图...', status: 'done' });
     
     setTimeout(() => {
         inferenceResults.value = data.results;
@@ -379,6 +461,33 @@ const startInference = async (cleanSchema) => {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+/* ===== 头部动画特效 ===== */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(60px, -30px) scale(1.1); }
+  66% { transform: translate(-30px, 20px) scale(0.95); }
+}
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+  50% { transform: translateY(-20px) scale(1.5); opacity: 1; }
+}
+@keyframes glowShift {
+  0%, 100% { transform: translateX(-30%); opacity: 0.3; }
+  50% { transform: translateX(30%); opacity: 0.8; }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.3); }
+}
 
 body {
   font-family: 'Inter', sans-serif;

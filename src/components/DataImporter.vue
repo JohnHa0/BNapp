@@ -1,32 +1,141 @@
 <template>
   <div class="h-full bg-ice-white p-6 pb-20" @dragover.prevent="onRootDragOver" @drop.prevent>
     <div class="max-w-7xl mx-auto space-y-6">
-      <!-- Header Options -->
-      <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-        <div>
-          <h1 class="text-2xl font-bold text-deep-blue">数据映射与网络拓扑构建</h1>
-          <p class="text-sm text-slate-500 mt-1">导入原始数据，或者加载系统沙盒测试集，通过直观的拖拽来构建 N 层概率依赖图。</p>
-        </div>
-        <div class="flex space-x-3 items-center">
-          <select v-model="selectedDemo" @change="loadDemo" class="bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 font-medium outline-none cursor-pointer">
-            <option value="">🔮 加载通用行业沙盘模板...</option>
-            <option value="public_security">【社会治理】省市三级公安防效能评估</option>
-            <option value="geopolitics">【地缘政治】全球同盟冲突演化博弈沙盘 (带地图坐标)</option>
-            <option value="health">【公共卫生】跨国-区域重症致死率归因</option>
-            <option value="retail">【商业零售】跨国总部-区域市场销量推演</option>
-            <option value="coral_reef">【生态保护】珊瑚礁生态保护观测网方案</option>
-            <option value="overseas_resilience">【战略规划】海外利益韧性图谱与风险预测</option>
-          </select>
-          <button @click="showManualInput = true" class="px-5 py-2.5 text-sm font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg cursor-pointer transition-all flex items-center">
-            <i class="fas fa-edit mr-2"></i>手动录入数据
+      <!-- 页面标题 -->
+      <div class="mb-5">
+        <h1 class="text-xl font-extrabold text-slate-900 tracking-tight">数据接入</h1>
+        <p class="text-sm text-slate-500 mt-1">上传业务数据或加载内置场景，拖拽列名搭建分析网络</p>
+      </div>
+      
+      <!-- 操作栏 -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- 场景加载组 -->
+          <div class="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-200 transition-colors">
+            <i class="fas fa-magic text-indigo-500"></i>
+            <select v-model="selectedDemo" @change="loadDemo" class="bg-transparent text-slate-700 text-sm font-medium outline-none cursor-pointer min-w-[220px]">
+              <option value="">加载行业场景模板...</option>
+              <option value="public_security">社会治理 · 三级警务效能</option>
+              <option value="geopolitics">地缘政治 · 四层博弈沙盘</option>
+              <option value="health">公共卫生 · 重症致死率归因</option>
+              <option value="retail">商业零售 · 跨国销量推演</option>
+              <option value="coral_reef">生态保护 · 珊瑚礁观测网</option>
+              <option value="overseas_resilience">战略规划 · 海外利益韧性</option>
+            </select>
+          </div>
+          
+          <div class="w-px h-8 bg-slate-200"></div>
+          
+          <!-- 数据来源组 -->
+          <button @click="showManualInput = true" class="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors flex items-center gap-2">
+            <i class="fas fa-keyboard text-slate-400"></i>手动输入
           </button>
-          <button @click="downloadSampleCSV" class="px-5 py-2.5 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg cursor-pointer transition-all flex items-center" title="下载标准宽表范例格式">
-            <i class="fas fa-download mr-2"></i>下载范例模板
+          <button @click="downloadSampleCSV" class="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors flex items-center gap-2">
+            <i class="fas fa-download text-slate-400"></i>模板下载
           </button>
-          <label class="px-5 py-2.5 text-sm font-semibold text-white bg-deep-blue hover:bg-slate-800 rounded-lg cursor-pointer transition-all shadow shadow-deep-blue/30 flex items-center">
-            <i class="fas fa-file-csv mr-2 text-neon-cyan"></i>上传表格 (CSV)
+          <label class="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer transition-colors shadow-lg shadow-indigo-500/20 flex items-center gap-2">
+            <i class="fas fa-cloud-upload-alt"></i>上传 CSV
             <input type="file" class="hidden" accept=".csv" @change="handleFileUpload" />
           </label>
+        </div>
+      </div>
+
+      <!-- 预设场景深度说明面板 -->
+      <div v-if="selectedDemo && currentPresetInfo" class="bg-white border border-indigo-200 rounded-xl shadow-sm overflow-hidden">
+        <!-- 标题栏 -->
+        <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 px-5 py-3 flex justify-between items-center">
+          <h3 class="text-sm font-black text-white flex items-center gap-2">
+            <i class="fas fa-cube"></i>{{ currentPresetInfo.title }}
+          </h3>
+          <button @click="selectedDemo = ''; currentPresetInfo = null" class="text-indigo-200 hover:text-white transition-colors">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="p-5 space-y-4">
+          <!-- 业务描述 -->
+          <p class="text-sm text-slate-600 leading-relaxed">{{ currentPresetInfo.description }}</p>
+          
+          <!-- 三栏：结构 + 因子 + 原理 -->
+          <div class="grid grid-cols-3 gap-4">
+            <!-- 左：网络结构 -->
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+              <div class="text-[11px] font-black text-slate-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-project-diagram text-indigo-500"></i>网络结构
+              </div>
+              <div class="space-y-2">
+                <div v-for="(lvl, i) in currentPresetInfo.hierarchy" :key="i">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[9px] font-black">L{{ i + 1 }}</span>
+                    <span class="text-xs font-bold text-slate-700">{{ lvl.name }}</span>
+                  </div>
+                  <div class="ml-7 text-[10px] text-slate-500 mb-1">ID列：{{ lvl.idDesc }}</div>
+                  <div v-if="i < currentPresetInfo.hierarchy.length - 1" class="ml-2 border-l-2 border-dashed border-indigo-200 h-4"></div>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-dashed border-slate-200 text-[10px] text-slate-400">
+                上层节点的变化会自动影响下层所有节点——这就是"层级嵌套"模型的核心。
+              </div>
+            </div>
+            
+            <!-- 中：评估因子 -->
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+              <div class="text-[11px] font-black text-slate-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-crosshairs text-amber-500"></i>评估因子
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                  <span class="font-bold text-slate-700">目标：</span>
+                  <span class="text-slate-600">{{ currentPresetInfo.targetDesc }}</span>
+                </div>
+                <div class="text-[9px] text-slate-400 ml-4 mb-2">系统将排除客观条件差异，计算每个节点的"净贡献"</div>
+                <div v-for="(cov, i) in currentPresetInfo.covariates" :key="i" class="flex items-start gap-2 text-xs">
+                  <span class="w-2 h-2 rounded-full bg-blue-400 shrink-0 mt-1"></span>
+                  <div>
+                    <span class="font-bold text-slate-700">{{ cov.name }}</span>
+                    <span class="text-slate-500 ml-1">— {{ cov.desc }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 pt-3 border-t border-dashed border-slate-200 text-[10px] text-slate-400">
+                系统会量化每个因素对目标的影响力（β值），找到最关键的因素。
+              </div>
+            </div>
+            
+            <!-- 右：计算原理 -->
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+              <div class="text-[11px] font-black text-slate-700 mb-3 flex items-center gap-2">
+                <i class="fas fa-calculator text-emerald-500"></i>计算原理
+              </div>
+              <div class="space-y-2 text-[10px] text-slate-600 leading-relaxed">
+                <div class="bg-white rounded-lg p-2 border border-slate-100">
+                  <span class="font-bold text-indigo-600">① 标准化</span>
+                  <p class="text-slate-500 mt-0.5">将所有数值转换为统一尺度（Z-score），消除量纲差异</p>
+                </div>
+                <div class="bg-white rounded-lg p-2 border border-slate-100">
+                  <span class="font-bold text-indigo-600">② 层次建模</span>
+                  <p class="text-slate-500 mt-0.5">按您设定的层级自动抓取嵌套关系（如：同一省下的市具有关联性）</p>
+                </div>
+                <div class="bg-white rounded-lg p-2 border border-slate-100">
+                  <span class="font-bold text-indigo-600">③ MCMC采样</span>
+                  <p class="text-slate-500 mt-0.5">运行数千次模拟推演，算出每个因素的β权重和置信区间</p>
+                </div>
+                <div class="bg-white rounded-lg p-2 border border-slate-100">
+                  <span class="font-bold text-indigo-600">④ 偏差计算</span>
+                  <p class="text-slate-500 mt-0.5">实际值 − 模型预期值 = 净贡献。正数 = 超预期，负数 = 需关注</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 适配提示 -->
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+            <i class="fas fa-exchange-alt text-amber-500 mt-0.5"></i>
+            <div class="text-xs">
+              <span class="font-bold text-amber-800">如何适配到您的数据：</span>
+              <span class="text-amber-700">保持层级关系不变，将列名替换为您的对应列。例如将「{{ currentPresetInfo.adaptExample.from }}」替换为「{{ currentPresetInfo.adaptExample.to }}」，将各层级ID列替换为您的组织名称列。</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -36,7 +145,7 @@
         <!-- Left: Unassigned Columns -->
         <div class="w-1/3 bg-white rounded-xl shadow-sm border border-slate-200">
           <div class="p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl flex justify-between items-center">
-            <h2 class="font-bold text-slate-700"><i class="fas fa-database mr-2 text-slate-400"></i> 数据要素池 (Data Pool)</h2>
+            <h2 class="font-bold text-slate-700"><i class="fas fa-database mr-2 text-slate-400"></i> 待分配数据列</h2>
             <span class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">{{ unassignedColumns.length }}</span>
           </div>
           
@@ -131,7 +240,7 @@
           <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-xl border border-amber-200 shadow-sm relative overflow-hidden">
             <div class="absolute right-0 top-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2"></div>
             <h3 class="text-sm font-bold text-amber-900 mb-3 flex items-center">
-              <i class="fas fa-bullseye text-amber-500 mr-2"></i> 观测靶点 (Observational Target - Y)
+              <i class="fas fa-bullseye text-amber-500 mr-2"></i> 评估目标（核心KPI）
             </h3>
             <div 
               class="w-full min-h-[60px] border-2 border-dashed rounded-lg flex items-center justify-center p-2 transition-colors"
@@ -150,7 +259,7 @@
                 <span class="ml-auto text-xs text-amber-600/70 font-mono">{{ targetVariable.original }}</span>
               </div>
               <div v-else class="text-amber-700/60 text-sm font-medium">
-                拖拽一个要素到此处作为基准评估指标 Y
+                将您的核心KPI拖到这里
               </div>
             </div>
           </div>
@@ -232,16 +341,22 @@
         </div>
       </div>
       
-      <!-- Placeholder when no data -->
-      <div v-else class="h-[60vh] flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-2xl bg-white/50 backdrop-blur-sm">
-        <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
-          <i class="fas fa-cloud-upload-alt text-3xl text-indigo-500"></i>
+      <!-- 空状态 -->
+      <div v-else class="h-[60vh] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl bg-white/80">
+        <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mb-5">
+          <i class="fas fa-table text-2xl text-indigo-400"></i>
         </div>
-        <h2 class="text-2xl font-bold text-slate-700 mb-2">未检测到分析数据集</h2>
-        <p class="text-slate-500 max-w-md text-center mb-6">您可以点击右上角上传 CSV 业务宽表，或者从下拉菜单中加载系统内置的行业沙盒模板进行体验验证。</p>
-        <button @click="() => { selectedDemo = 'public_security'; loadDemo(); }" class="px-6 py-3 bg-deep-blue text-white rounded-lg shadow-md font-semibold hover:bg-slate-800 transition-colors">
-          <i class="fas fa-magic mr-2 text-neon-cyan"></i> 快速载入演示沙盒沙盘
-        </button>
+        <h2 class="text-lg font-bold text-slate-700 mb-1">准备开始分析</h2>
+        <p class="text-sm text-slate-400 max-w-sm text-center mb-6">上传 CSV 文件、粘贴数据，或加载内置行业场景快速体验</p>
+        <div class="flex gap-3">
+          <label class="px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer transition-colors shadow-sm shadow-indigo-200 flex items-center gap-2">
+            <i class="fas fa-upload"></i>上传数据
+            <input type="file" class="hidden" accept=".csv" @change="handleFileUpload" />
+          </label>
+          <button @click="() => { selectedDemo = 'public_security'; loadDemo(); }" class="px-5 py-2.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-200 transition-colors flex items-center gap-2">
+            <i class="fas fa-play"></i>加载示例
+          </button>
+        </div>
       </div>
     </div>
 
@@ -312,6 +427,110 @@ const hierarchy = ref([]);
 
 // Demo selection
 const selectedDemo = ref('');
+const currentPresetInfo = ref(null);
+
+// 预设场景说明数据
+const presetInfoMap = {
+  public_security: {
+    title: '社会治理 · 省市三级公安防效能评估',
+    description: '模拟从省级调度→市局指挥→基层分局执行的三级警务效能网络。评估各分局在给定资源条件下（经费、巡防密度、监控覆盖率）的实际打防转化效率，识别超常发挥和需要支援的单位。',
+    hierarchy: [
+      { name: '省级调度池', idDesc: '省厅区划（如XX省）' },
+      { name: '市局作战圈', idDesc: '市局单位（如XX市公安局）' },
+      { name: '基层分局（落实方）', idDesc: '分局名称（如XX分局）' }
+    ],
+    targetDesc: '综合打防转化率（核心KPI）',
+    covariates: [
+      { name: '专班经费投入', desc: '市局层面的专项经费' },
+      { name: '警力巡防密度', desc: '基层警力部署程度' },
+      { name: '监控覆盖率', desc: '技防设施完备程度' }
+    ],
+    adaptExample: { from: '综合打防转化率', to: '您的核心考核指标' }
+  },
+  geopolitics: {
+    title: '地缘政治 · 全球同盟冲突演化博弈',
+    description: '构建联盟→战区→国家→城市的四层地缘影响网络。评估各城市在所属联盟政策、战区局势和国家条件下的区域稳定性，支持地理空间可视化。',
+    hierarchy: [
+      { name: '全球联盟层', idDesc: '联盟名称（如XX同盟）' },
+      { name: '战区层', idDesc: '战区（如XX战区）' },
+      { name: '国家层', idDesc: '国家名称' },
+      { name: '城市层', idDesc: '城市名称' }
+    ],
+    targetDesc: '区域维稳指数（核心KPI）',
+    covariates: [
+      { name: '联盟制裁压力', desc: '所属联盟面临的制裁强度' },
+      { name: '经济韧性指数', desc: '本地经济抗压能力' },
+      { name: '军事部署密度', desc: '战区军事力量配置' }
+    ],
+    adaptExample: { from: '区域维稳指数', to: '您的核心评估指标' }
+  },
+  health: {
+    title: '公共卫生 · 跨国-区域重症致死率归因',
+    description: '在全球→区域→国家的层级下，分析各国重症致死率与医疗资源、卫生投入的关系，识别同等条件下表现优异或异常的国家。',
+    hierarchy: [
+      { name: '全球大区', idDesc: '大洲或国际区域' },
+      { name: '国家层', idDesc: '国家名称' }
+    ],
+    targetDesc: '重症致死率（核心指标）',
+    covariates: [
+      { name: '人均医疗支出', desc: '医疗资源投入水平' },
+      { name: '床位数/千人', desc: '基础设施完备度' }
+    ],
+    adaptExample: { from: '重症致死率', to: '您的健康评估指标' }
+  },
+  retail: {
+    title: '商业零售 · 跨国总部-区域市场销量推演',
+    description: '总部→大区→国家→城市的四级零售网络。评估各市场在给定条件下（广告投放、门店密度）的实际销量表现，发现被低估的高潜力市场。',
+    hierarchy: [
+      { name: '全球总部', idDesc: '总部/集团' },
+      { name: '大区层', idDesc: '大区（如亚太区）' },
+      { name: '国家层', idDesc: '国家' },
+      { name: '城市层', idDesc: '城市' }
+    ],
+    targetDesc: '市场销量（核心KPI）',
+    covariates: [
+      { name: '广告投放预算', desc: '市场推广投入' },
+      { name: '门店覆盖密度', desc: '渠道覆盖程度' }
+    ],
+    adaptExample: { from: '市场销量', to: '您的销售业绩指标' }
+  },
+  coral_reef: {
+    title: '生态保护 · 珊瑚礁生态保护观测网',
+    description: '海洋区域→礁群→观测站的三级生态评估。分析各观测站在给定环境条件（水温、污染指数）下的珊瑚覆盖率表现，定位生态保护亮点和暗点。',
+    hierarchy: [
+      { name: '海洋区域', idDesc: '海域名称' },
+      { name: '礁群', idDesc: '礁群编号' },
+      { name: '观测站', idDesc: '站点编号' }
+    ],
+    targetDesc: '珊瑚覆盖率（核心指标）',
+    covariates: [
+      { name: '年均水温', desc: '环境温度影响' },
+      { name: '污染综合指数', desc: '人类活动影响' }
+    ],
+    adaptExample: { from: '珊瑚覆盖率', to: '您的生态评估指标' }
+  },
+  overseas_resilience: {
+    title: '战略规划 · 海外利益韧性图谱与风险预测',
+    description: '大洲→国家→城市的三级海外利益评估。分析各节点在给定风险条件下的韧性表现，支持跨国投资和安全规划决策。',
+    hierarchy: [
+      { name: '大洲层', idDesc: '大洲' },
+      { name: '国家层', idDesc: '国家' },
+      { name: '城市层', idDesc: '城市' }
+    ],
+    targetDesc: '利益韧性指数（核心指标）',
+    covariates: [
+      { name: '政治稳定度', desc: '所在国政治环境' },
+      { name: '经济依存度', desc: '与母国经济联系' },
+      { name: '安保投入', desc: '安全保障资源' }
+    ],
+    adaptExample: { from: '利益韧性指数', to: '您的风险评估指标' }
+  }
+};
+
+// 加载预设时设置说明信息
+const setPresetInfo = (key) => {
+  currentPresetInfo.value = presetInfoMap[key] || null;
+};
 
 // Sampling mode ('accurate' or 'fast') - 默认快速模式
 const samplingMode = ref('fast');
@@ -364,7 +583,7 @@ const createColObj = (name) => ({
 
 // Start validation and prepare for Inference request payload
 const proceedToHealthCheck = () => {
-  if (!targetVariable.value) return alert("必须至少设定一个观测靶点作为模型 Y 参数");
+  if (!targetVariable.value) return alert("请先指定您要评估的核心KPI指标");
   
   // Format pure structure back to standard backend API
   const cleanHierarchy = hierarchy.value.filter(l => l.id_column).map(l => ({
@@ -682,6 +901,7 @@ const teardownDrag = () => {
 
 // 模版库自动化装载函数
 const loadDemo = () => {
+  setPresetInfo(selectedDemo.value);
   if (selectedDemo.value === 'public_security') injectPublicSecurityDemo();
   else if (selectedDemo.value === 'health') injectHealthDemo();
   else if (selectedDemo.value === 'retail') injectRetailDemo();

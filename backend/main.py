@@ -560,6 +560,169 @@ async def install_gpu_pack():
             logger.exception(f"GPU 安装异常: {e}")
             return {"status": "error", "message": f"子进程执行异常: {str(e)}"}
 
+class ReportRequest(BaseModel):
+    project_name: str
+    performance_data: List[Dict[str, Any]]
+    summary_df: Dict[str, Any]
+    betas: Dict[str, float]
+    hierarchy: List[SchemaLevel]
+    target_variable: TargetVariable
+    node_count: int
+
+@app.post("/api/generate_report")
+async def generate_report(req: ReportRequest):
+    """
+    生成结构化决策研判报告 JSON。
+
+    返回分层报告结构：
+    - executive_summary: 研判总评
+    - key_drivers: 关键归因因子（按影响力排序）
+    - priority_ranking: 决策优先级排序（含偏差等级）
+    - actionable_recommendations: 可执行建议列表
+    - risk_matrix: 风险评估矩阵分布
+    - model_confidence: 模型可信度评估
+    """
+    try:
+        perf = req.performance_data
+        
+        # ── 研判总评 ──
+        bright = sum(1 for d in perf if d.get("Status") == "Bright Spot")
+        dark = sum(1 for d in perf if d.get("Status") == "Dark Spot")
+        neutral = len(perf) - bright - dark
+        
+        # ── 关键归因因子排序 ──
+        driver_entries = []
+        for k, v in req.betas.items():
+            abs_v = abs(v)
+            driver_entries.append({
+                "factor": k,
+                "beta": float(v),
+                "abs_beta": abs_v,
+                "direction": "正向驱动" if v > 0 else "负向拖累",
+                "impact_level": "高" if abs_v > 0.1 else ("中" if abs_v > 0.03 else "低"),
+                "interpretation": f"每提升 1 个标准差，预期效能{'提升' if v > 0 else '降低'}约 {abs_v:.3f}"
+            })
+        driver_entries.sort(key=lambda x: x["abs_beta"], reverse=True)
+        
+        # ── 决策优先级排序 ──
+        deviations = [d.get("Deviation", 0) for d in perf]
+        sd = float(np.std(deviations)) if deviations else 1.0
+        if sd < 0.01:
+            sd = 0.1
+        
+        priority_list = []
+        for d in perf:
+            dev = d.get("Deviation", 0)
+            abs_dev = abs(dev)
+            if dev < -2 * sd:
+                level, label = "critical", "紧急处置"
+            elif dev < -sd:
+                level, label = "high", "重点关注"
+            elif dev > 2 * sd:
+                level, label = "positive", "效能标杆"
+            elif dev > sd:
+                level, label = "positive", "表现优良"
+            else:
+                level, label = "neutral", "正常运行"
+            priority_list.append({
+                "node": d.get("NodeName", ""),
+                "actual": float(d.get("Actual", 0)),
+                "expected": float(d.get("Expected", 0)),
+                "deviation": float(dev),
+                "priority_level": level,
+                "priority_label": label
+            })
+        priority_list.sort(key=lambda x: (
+            {"critical": 0, "high": 1, "neutral": 2, "positive": 3}[x["priority_level"]],
+            -abs(x["deviation"])
+        ))
+        
+        # ── 可执行建议生成 ──
+        recommendations = []
+        if dark > 0:
+            worst = sorted([p for p in priority_list if p["priority_level"] in ("critical", "high")],
+                           key=lambda x: x["deviation"])[:3]
+            worst_names = "、".join([p["node"] for p in worst])
+            recommendations.append({
+                "type": "urgent",
+                "title": "紧急处置：异常单元整改",
+                "scope": f"涉及 {dark} 个单元",
+                "content": f"检测到 {dark} 个单元效能低于系统预期。建议对 {worst_names} 等单元启动专项督导，排查非观测性干扰因素。",
+                "expected_impact": f"若整改至期望水平，系统整体效能预计提升 {dark / len(perf) * 60:.1f}%"
+            })
+        
+        if driver_entries:
+            top = driver_entries[0]
+            recommendations.append({
+                "type": "strategic",
+                "title": "战略调整：关键杠杆优化",
+                "scope": f"核心因子: {top['factor']}",
+                "content": f"「{top['factor']}」是影响权重最高的变量（β={top['beta']:.4f}），属于{top['direction']}因子。建议在资源配置中优先优化该变量。",
+                "expected_impact": f"每提升 1 个标准差可带来约 {top['abs_beta']:.3f} 的效能增益"
+            })
+        
+        if bright > 0:
+            recommendations.append({
+                "type": "positive",
+                "title": "经验推广：标杆复制",
+                "scope": f"{bright} 个标杆单元",
+                "content": f"识别出 {bright} 个超期望表现单元。建议深度调研其管理方法，将成功经验编码为标准操作流程推广。",
+                "expected_impact": "经验推广至 30% 同类单元，预计整体效能提升 5-10%"
+            })
+        
+        # ── 风险评估矩阵 ──
+        matrix = {"high_high": 0, "high_mid": 0, "high_low": 0,
+                   "mid_high": 0, "mid_mid": 0, "mid_low": 0,
+                   "low_high": 0, "low_mid": 0, "low_low": 0}
+        
+        max_impact = max(abs(d.get("Actual", 0) - d.get("Expected", 0)) for d in perf) or 1
+        for d in perf:
+            abs_dev = abs(d.get("Deviation", 0))
+            impact = abs(d.get("Actual", 0) - d.get("Expected", 0)) / max_impact
+            is_high = abs_dev > 2.5 * sd
+            is_mid = abs_dev > 1.5 * sd and abs_dev <= 2.5 * sd
+            
+            if is_high and impact > 0.66: matrix["high_high"] += 1
+            elif is_high and impact > 0.33: matrix["high_mid"] += 1
+            elif is_high: matrix["high_low"] += 1
+            elif is_mid and impact > 0.66: matrix["mid_high"] += 1
+            elif is_mid and impact > 0.33: matrix["mid_mid"] += 1
+            elif is_mid: matrix["mid_low"] += 1
+            elif impact > 0.66: matrix["low_high"] += 1
+            elif impact > 0.33: matrix["low_mid"] += 1
+            else: matrix["low_low"] += 1
+        
+        # ── 模型可信度 ──
+        confidence = min(99, 65 + (10 if len(perf) > 20 else 0) + 
+                        (5 if len(perf) > 50 else 0) + 
+                        (10 if len(driver_entries) >= 3 else 0) +
+                        (10 if 0.3 < neutral / len(perf) < 0.9 else 0))
+        
+        return {
+            "status": "success",
+            "report": {
+                "project_name": req.project_name,
+                "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "executive_summary": {
+                    "total_nodes": len(perf),
+                    "total_levels": len(req.hierarchy),
+                    "bright_count": bright,
+                    "dark_count": dark,
+                    "neutral_count": neutral,
+                    "bright_ratio": f"{bright / len(perf) * 100:.1f}%" if perf else "0%",
+                    "dark_ratio": f"{dark / len(perf) * 100:.1f}%" if perf else "0%"
+                },
+                "key_drivers": driver_entries,
+                "priority_ranking": priority_list[:10],
+                "actionable_recommendations": recommendations,
+                "risk_matrix": matrix,
+                "model_confidence": confidence
+            }
+        }
+    except Exception as e:
+        logger.exception(f"报告生成失败: {e}")
+        raise HTTPException(status_code=500, detail=f"报告生成失败: {str(e)}")
+
 def _kill_process_on_port(port: int):
     """在 Windows 上查找并杀死占用指定端口的进程，防止 Errno 10048"""
     import socket

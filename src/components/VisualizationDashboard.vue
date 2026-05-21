@@ -29,15 +29,19 @@
       </div>
     </div>
 
-    <!-- New Project Benchmark Modal -->
-    <div v-if="showBenchmarkModal" class="fixed inset-0 bg-deep-blue/60 backdrop-blur-sm flex justify-center items-center z-[60] overflow-y-auto py-8">
-      <div class="bg-white p-6 rounded-xl shadow-2xl w-[600px] transform transition-all max-h-full flex flex-col">
-        <div class="flex justify-between items-center mb-4 shrink-0">
-            <h3 class="font-bold text-lg text-slate-800 flex items-center"><i class="fas fa-balance-scale text-indigo-600 mr-2"></i>拟建项目事前风险对标引擎</h3>
+    <!-- 对标演算弹窗 -->
+    <div v-if="showBenchmarkModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-[60] overflow-y-auto py-8">
+      <div class="bg-white p-6 rounded-2xl shadow-2xl w-[720px] max-h-[92vh] flex flex-col border border-slate-200">
+        <div class="flex justify-between items-center mb-3 shrink-0">
+            <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="fas fa-balance-scale text-indigo-600"></i></div>
+              对标演算 · 新项目预估
+            </h3>
             <button @click="showBenchmarkModal = false" class="text-slate-400 hover:text-slate-600 transition-colors"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <p class="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 shrink-0 leading-relaxed">
-            输入拟建项目的本地基准环境指标，AI 将通过高维马氏距离/欧式距离，在底层数据库中为您匹配环境最相似的历史标杆项目，并利用当前贝叶斯网络权重测算其最终效能落点预估值。
+        <p class="text-xs text-slate-500 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 shrink-0 leading-relaxed">
+          输入新项目在各维度上的预期数值，系统会在历史数据中找出条件最相似的已有对象，用当前模型的β权重推算新项目的预期表现。
+          <span class="text-slate-400">请注意：这是基于历史规律的推算，不等同于精确预测。</span>
         </p>
 
         <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -56,28 +60,35 @@
             </div>
 
             <div v-if="benchmarkResults" class="mt-6 border-t border-slate-200 pt-5 animate-fade-in">
-               <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center"><i class="fas fa-clipboard-check text-emerald-500 mr-2"></i>演算智库简报 (Intelligence Brief)</h4>
+               <h4 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                 <i class="fas fa-clipboard-check text-emerald-500"></i>对标演算结果
+               </h4>
                
-               <div class="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-5 mb-5 flex justify-between items-center shadow-sm">
-                   <div>
-                       <div class="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mb-1">贝叶斯预期效能落点</div>
-                       <div class="text-2xl font-black text-slate-800 flex items-baseline">
-                           {{ targetAlias }}: <span class="text-indigo-700 ml-2" :title="benchmarkResults.expected_y">{{ benchmarkResults.expected_y.toFixed(3) }}</span>
-                       </div>
+               <div class="grid grid-cols-3 gap-3 mb-5">
+                   <div class="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-4 text-center">
+                       <div class="text-[10px] text-indigo-500 font-bold mb-1">预期表现</div>
+                       <div class="text-xl font-black text-indigo-700">{{ benchmarkResults.expected_y.toFixed(3) }}</div>
+                       <div class="text-[9px] text-slate-400 mt-0.5">模型推算的应有水平</div>
                    </div>
-                   <div class="text-right">
-                       <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">对比全局历史期望位移</div>
-                       <div class="text-xl font-bold flex items-center justify-end" :class="benchmarkResults.expected_delta > 0 ? 'text-emerald-600' : 'text-rose-600'">
-                           <i :class="benchmarkResults.expected_delta > 0 ? 'fas fa-arrow-up mr-1' : 'fas fa-arrow-down mr-1'"></i>
+                   <div class="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-xl p-4 text-center">
+                       <div class="text-[10px] text-emerald-500 font-bold mb-1">相对基准</div>
+                       <div class="text-xl font-black flex items-center justify-center gap-1" :class="benchmarkResults.expected_delta > 0 ? 'text-emerald-600' : 'text-rose-600'">
+                           <i :class="benchmarkResults.expected_delta > 0 ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
                            {{ Math.abs(benchmarkResults.expected_delta).toFixed(3) }}
                        </div>
+                       <div class="text-[9px] text-slate-400 mt-0.5">{{ benchmarkResults.expected_delta > 0 ? '高于历史均值' : '低于历史均值' }}</div>
+                   </div>
+                   <div class="bg-gradient-to-br from-amber-50 to-white border border-amber-100 rounded-xl p-4 text-center">
+                       <div class="text-[10px] text-amber-500 font-bold mb-1">最相似对象</div>
+                       <div class="text-sm font-black text-slate-700 truncate px-1">{{ benchmarkResults.matches[0] ? (displayMapping[benchmarkResults.matches[0].node_name] || benchmarkResults.matches[0].node_name) : '-' }}</div>
+                       <div class="text-[9px] text-slate-400 mt-0.5">匹配度 {{ benchmarkResults.matches[0] ? benchmarkResults.matches[0].similarity.toFixed(0) : '-' }}%</div>
                    </div>
                </div>
                
                <!-- Factor AI Attributions -->
                <div class="mb-5 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                   <div class="text-[10px] text-slate-500 font-bold mb-2 tracking-wide uppercase flex items-center group/attri relative">
-                       核心动因拆解 (Key Drivers)
+                   <div class="text-[10px] text-slate-500 font-bold mb-2 flex items-center group/attri relative">
+                       各因素贡献拆解
                        <i class="fas fa-question-circle ml-1.5 text-slate-300 cursor-help"></i>
                        <div class="absolute bottom-full left-0 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/attri:opacity-100 group-hover/attri:scale-100 transition-all pointer-events-none z-50 font-normal">
                            <div class="font-bold mb-1 text-indigo-400">边际贡献率说明</div>
@@ -100,21 +111,21 @@
                    </div>
                </div>
 
-               <!-- Executive Summary -->
+               <!-- 决策建议 -->
                <div class="mb-5">
-                   <div class="text-xs font-bold text-slate-800 mb-2 flex items-center"><i class="fas fa-robot text-indigo-500 mr-1.5"></i>AI 辅助决策纪要</div>
-                   <textarea readonly class="w-full h-32 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3 text-xs text-slate-700 leading-relaxed resize-none focus:outline-none custom-scrollbar" :value="executiveSummary"></textarea>
+                   <div class="text-xs font-bold text-slate-800 mb-2 flex items-center gap-1.5"><i class="fas fa-lightbulb text-amber-500"></i>决策建议</div>
+                   <div class="bg-amber-50/50 border border-amber-100 rounded-lg p-3 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{{ executiveSummary }}</div>
                </div>
 
                <!-- Radar Chart -->
                <div class="mb-5 border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
                    <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 text-xs font-bold text-slate-600 flex justify-between items-center">
-                       <span><i class="fas fa-spider text-slate-400 mr-1.5"></i>多维特征雷达映射</span>
+                       <span><i class="fas fa-chart-pie text-slate-400 mr-1.5"></i>多维特征对比</span>
                    </div>
                    <div ref="benchmarkRadarRef" class="w-full h-48"></div>
                </div>
 
-               <h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wider">高维空间环境最相似历史项目 (Nearest Neighbors)</h4>
+               <h4 class="text-xs font-bold text-slate-500 mb-3">条件最相似的历史对象</h4>
                <div class="space-y-3">
                    <div v-for="(match, idx) in benchmarkResults.matches" :key="idx" class="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3.5 hover:border-indigo-300 transition-colors shadow-sm relative overflow-hidden">
                        <div class="absolute left-0 top-0 bottom-0 w-1" :class="idx === 0 ? 'bg-amber-400' : (idx === 1 ? 'bg-slate-300' : 'bg-amber-700/50')"></div>
@@ -144,29 +155,34 @@
       </div>
     </div>
 
-    <!-- Toolbar -->
-    <div class="flex justify-between items-center mb-6 bg-deep-blue p-4 rounded-xl shadow-lg border border-slate-700/50 text-white shrink-0">
-      <div>
-        <h1 class="text-xl font-bold flex items-center">
-            <i class="fas fa-satellite-dish text-neon-cyan mr-3 animate-pulse"></i> {{ titles.main }}
-        </h1>
-        <p class="text-xs text-slate-300 mt-1 opacity-80">
-            由 DeepBayes NUTS 后验采样引擎于 {{ new Date().toLocaleTimeString() }} 生成
-        </p>
-      </div>
-      <div class="flex space-x-3">
-        <button @click="openBenchmark" class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600/90 rounded hover:bg-indigo-500 transition-colors flex items-center shadow shadow-indigo-900/50">
-          <i class="fas fa-balance-scale mr-1.5"></i>新项目对标演算
-        </button>
-        <button @click="showMetaEditor = true" class="px-3 py-1.5 text-xs font-medium text-slate-200 bg-white/10 rounded hover:bg-white/20 transition-colors flex items-center">
-          <i class="fas fa-paint-brush mr-1.5"></i>外观配置
-        </button>
-        <button @click="exportCSV" class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600/90 rounded hover:bg-emerald-500 transition-colors flex items-center shadow shadow-emerald-900/50">
-          <i class="fas fa-file-csv mr-1.5"></i>导出数据宽表 (CSV)
-        </button>
-        <button @click="$emit('reset')" class="px-3 py-1.5 text-xs font-bold text-slate-800 bg-white rounded hover:bg-slate-100 transition-colors flex items-center">
-          <i class="fas fa-power-off mr-1.5 text-rose-500"></i>结束推演
-        </button>
+    <!-- 页面工具栏 -->
+    <div class="mb-5 bg-[#0b1121] rounded-2xl shadow-xl shadow-black/10 border border-white/5 text-white shrink-0 relative overflow-hidden">
+      <div class="absolute inset-0 opacity-[0.02]" style="background-image: radial-gradient(circle at 1px 1px, rgba(99,102,241,0.8) 1px, transparent 0); background-size: 20px 20px;"></div>
+      <div class="flex justify-between items-center px-6 py-4 relative z-10">
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center ring-1 ring-indigo-500/30">
+            <i class="fas fa-chart-pie text-cyan-400 text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-tight">{{ titles.main }}</h1>
+            <p class="text-[11px] text-slate-500 mt-0.5">分析完成 · {{ new Date().toLocaleTimeString() }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button @click="emit('open-decision')" class="h-9 px-4 text-[13px] font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-400 transition-colors flex items-center gap-2 shadow-lg shadow-amber-500/20">
+            <i class="fas fa-brain text-sm"></i>决策中心
+          </button>
+          <button @click="openBenchmark" class="h-9 px-4 text-[12px] font-medium text-slate-200 bg-white/5 hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2 border border-white/5">
+            <i class="fas fa-balance-scale"></i>对标演算
+          </button>
+          <div class="w-px h-6 bg-white/10"></div>
+          <button @click="exportFullReport" class="h-9 px-3 text-[12px] font-medium text-slate-300 bg-white/5 hover:bg-white/10 rounded-xl transition-colors flex items-center gap-1.5">
+            <i class="fas fa-download"></i>导出
+          </button>
+          <button @click="$emit('reset')" class="h-9 px-3 text-[12px] font-medium text-slate-400 bg-white/5 hover:bg-rose-500/20 hover:text-rose-300 rounded-xl transition-colors flex items-center gap-1.5">
+            <i class="fas fa-arrow-left"></i>返回
+          </button>
+        </div>
       </div>
     </div>
 
@@ -205,12 +221,13 @@
           <div v-if="isShockMode" class="absolute inset-0 bg-rose-600/20 w-full h-full animate-pulse blur-md"></div>
           <h2 class="text-sm font-bold text-slate-200 z-10 flex items-center group/scat relative">
               <i class="fas fa-crosshairs text-neon-cyan mr-2" :class="{'text-rose-400': isShockMode}"></i>
-              期望与实际离差评估 (Deviation Scatter)
+              效能偏差诊断图（找差距）
               <i class="fas fa-info-circle ml-2 text-slate-500 text-xs cursor-help"></i>
-              <div class="absolute top-full left-0 mt-2 w-72 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/scat:opacity-100 group-hover/scat:scale-100 transition-all pointer-events-none z-50 font-normal">
-                  <div class="font-bold mb-1 text-neon-cyan">离差评估说明</div>
-                  <p class="text-slate-300 leading-relaxed mb-2">横轴代表模型对该项目的「信心预期值」，纵轴代表「实测偏差」。</p>
-                  <p class="text-slate-400">· <span class="text-emerald-400">正离差</span>：项目超常发挥，存在管理红利。<br>· <span class="text-rose-400">负离差</span>：效能流失，需排查非观测性干扰。</p>
+              <div class="absolute top-full left-0 mt-2 w-80 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/scat:opacity-100 group-hover/scat:scale-100 transition-all pointer-events-none z-50 font-normal">
+                  <div class="font-bold mb-1 text-neon-cyan">效能偏差解读（管理者视角）</div>
+                  <p class="text-slate-300 leading-relaxed mb-2">横轴：系统测算的「应有表现」| 纵轴：实绩与应有表现的差距</p>
+                  <p class="text-slate-400"><span class="text-emerald-400">上方散点</span> = 超预期（值得表彰/经验推广）<br><span class="text-rose-400">下方散点</span> = 低于预期（需关注/资源倾斜）<br><span class="text-slate-500">中部散点</span> = 符合预期（正常运行）</p>
+                  <p class="text-slate-500 mt-1 text-[10px] border-t border-slate-700 pt-1">💡 优先关注右下角红点——同等投入下产出最低的单元</p>
               </div>
           </h2>
           <div class="flex space-x-3 items-center">
@@ -225,13 +242,15 @@
       <div class="col-span-4 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
         <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10">
           <h2 class="text-sm font-bold text-slate-700 flex items-center group/ppctip relative">
-            <i class="fas fa-chart-area text-blue-500 mr-2"></i>后验预测检验 (PPC)
+            <i class="fas fa-chart-area text-blue-500 mr-2"></i>模型可信度验证
             <span v-if="ppcScore" class="ml-2 text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 cursor-help">
-               拟合优度: {{ ppcScore }}%
+               可信度: {{ ppcScore }}%
             </span>
-            <div class="absolute top-full left-0 mt-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/ppctip:opacity-100 group-hover/ppctip:scale-100 transition-all pointer-events-none z-50 font-normal">
-                <div class="font-bold mb-1 text-blue-400">PPC 拟合说明</div>
-                <p class="text-slate-300 leading-relaxed">衡量「模型生成的模拟分布」与「真实观测分布」的重合度。分值越高，模型对该领域业务逻辑的掌握度越真实。</p>
+            <div class="absolute top-full left-0 mt-2 w-72 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/ppctip:opacity-100 group-hover/ppctip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                <div class="font-bold mb-1 text-blue-400">模型可信度验证</div>
+                <p class="text-slate-300 leading-relaxed">深色线 = 真实业务数据 | 浅色带 = 模型推演出的合理范围</p>
+                <p class="text-slate-400 mt-1">当真实数据被模型推演范围完全包裹时，说明系统已准确掌握业务运行规律，分析结论可信。</p>
+                <p class="text-slate-500 mt-1 text-[10px] border-t border-slate-700 pt-1">💡 对决策者而言：此图是「本次分析靠不靠谱」的直观凭证。</p>
             </div>
           </h2>
           <button @click="exportChart('ppc')" class="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
@@ -243,12 +262,13 @@
       <div class="col-span-8 row-span-1 bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col overflow-hidden relative group transition-shadow hover:shadow-lg">
         <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center z-10 font-normal">
           <h2 class="text-sm font-bold text-slate-700 flex items-center group/foresttip relative">
-              <i class="fas fa-sliders-h text-emerald-500 mr-2"></i>归因分析与反事实推演沙盘 (What-If)
+              <i class="fas fa-sliders-h text-emerald-500 mr-2"></i>关键驱动力归因 & 情景推演沙盘
               <i class="fas fa-question-circle ml-1.5 text-slate-300 text-xs cursor-help"></i>
-              <div class="absolute top-full left-0 mt-2 w-72 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/foresttip:opacity-100 group-hover/foresttip:scale-100 transition-all pointer-events-none z-50 font-normal">
-                  <div class="font-bold mb-1 text-emerald-400">归因指标说明</div>
-                  <p class="text-slate-300 leading-relaxed mb-2">左图展示各要素的「95% HDI 影响力区间」。若区间完全落在 0 线一侧，说明该因素对结果有显著贡献。</p>
-                  <p class="text-slate-400">您可以通过右侧滑块手动模拟“反事实”场景，观测要素波动对整体预期的实时影响。</p>
+              <div class="absolute top-full left-0 mt-2 w-80 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/foresttip:opacity-100 group-hover/foresttip:scale-100 transition-all pointer-events-none z-50 font-normal">
+                  <div class="font-bold mb-1 text-emerald-400">驱动力归因解读（辅助决策）</div>
+                  <p class="text-slate-300 leading-relaxed mb-2">左侧：各因素对最终结果的推动力大小。线完全在零线右侧 = 正向推动，左侧 = 负向拖累。</p>
+                  <p class="text-slate-400">右侧滑块：拖动模拟「如果改变某项投入，整体表现会怎样」—— 真正的事前决策工具。</p>
+                  <p class="text-slate-500 mt-1 text-[10px] border-t border-slate-700 pt-1">💡 找到影响力最大的因子，它就是您资源配置的「最佳杠杆点」。</p>
               </div>
           </h2>
           <button @click="exportChart('forest')" class="text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fas fa-download"></i></button>
@@ -285,17 +305,17 @@
                 <!-- 极端冲击模拟器 -->
                 <div v-if="editableCovariates.length > 0" class="mt-8 pt-5 border-t border-slate-200 hide-scrollbar shrink-0">
                    <h3 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center">
-                     <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 金融级战损模拟预案 (Shock Test)
+                     <i class="fas fa-biohazard mr-1.5 animate-pulse"></i> 压力测试与情景推演
                    </h3>
                    <div class="grid grid-cols-1 gap-3 mb-2">
                       <div class="relative group/tip1">
                           <button @click="applyShock('achilles')" class="w-full py-2.5 text-[11px] font-bold text-white bg-slate-800 rounded-lg hover:bg-slate-900 shadow-sm transition-all flex items-center justify-center group overflow-hidden relative">
                              <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                             <i class="fas fa-crosshairs mr-2"></i> 🌪️ "阿喀琉斯"最痛点击穿模拟
+                             <i class="fas fa-crosshairs mr-2"></i> ⏺ 薄弱点测试（打击最敏感因素）
                           </button>
                           <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip1:opacity-100 group-hover/tip1:scale-100 transition-all pointer-events-none z-50">
-                              <div class="font-bold mb-1 text-amber-400"><i class="fas fa-info-circle mr-1"></i> 局部打击预案</div>
-                              <p class="text-slate-300 leading-relaxed text-left font-normal">系统智能锁定 $\beta$ 权重最大的敏感要素，独对其施加 -3SD 暴击，探测某一致命要害断链时的系统防御底线。</p>
+                              <div class="font-bold mb-1 text-amber-400"><i class="fas fa-info-circle mr-1"></i> 薄弱点压力测试</div>
+                              <p class="text-slate-300 leading-relaxed text-left font-normal">系统自动找到影响力最大的因素（β 权重最高），将其单独降至极端水平（-3σ），模拟"最致命环节出问题"时，各评估对象的表现变化。</p>
                               <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                           </div>
                       </div>
@@ -303,11 +323,11 @@
                       <div class="relative group/tip2">
                           <button @click="applyShock('crash')" class="w-full py-2.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 shadow-md shadow-rose-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
                              <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                             <i class="fas fa-meteor mr-2"></i> 💥 全环境要素级联坍塌模拟
+                             <i class="fas fa-meteor mr-2"></i> ⏺ 全面承压测试（所有因素同时恶化）
                           </button>
                           <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip2:opacity-100 group-hover/tip2:scale-100 transition-all pointer-events-none z-50">
-                              <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 极端崩盘预案</div>
-                              <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境参数同时重挫至 -3SD（系统性黑天鹅），引发全域网络风暴，以此提取大盘崩塌时依然抗跌的顶级韧性资产。</p>
+                              <div class="font-bold mb-1 text-rose-400"><i class="fas fa-skull mr-1"></i> 全面承压测试</div>
+                              <p class="text-slate-300 leading-relaxed text-left font-normal">将所有影响因素同时降到极端水平（-3σ），模拟整体环境全面恶化的场景。用于找出在所有条件都变差时，哪些对象依然能保持较好表现。</p>
                               <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                           </div>
                       </div>
@@ -315,11 +335,11 @@
                       <div class="relative group/tip3">
                           <button @click="applyShock('surge')" class="w-full py-2.5 text-[11px] font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center group overflow-hidden relative">
                              <span class="absolute right-0 w-8 h-32 -mt-12 transition-all duration-1000 transform translate-x-12 bg-white opacity-10 rotate-12 group-hover:-translate-x-40 ease"></span>
-                             <i class="fas fa-rocket mr-2"></i> 🚀 系统性历史极值红利探测
+                             <i class="fas fa-rocket mr-2"></i> ⏺ 理想上限推演（所有因素同时优化）
                           </button>
                           <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 text-white text-[11px] p-3 rounded-xl shadow-2xl opacity-0 scale-95 group-hover/tip3:opacity-100 group-hover/tip3:scale-100 transition-all pointer-events-none z-50">
-                              <div class="font-bold mb-1 text-emerald-400"><i class="fas fa-chart-line mr-1"></i> 极值红利预案</div>
-                              <p class="text-slate-300 leading-relaxed text-left font-normal">所有环境变量同时攀升至 +3SD 的巅峰状态，探测在最理想环境配置下，项目池能达到的理论效能天花板。</p>
+                              <div class="font-bold mb-1 text-emerald-400"><i class="fas fa-chart-line mr-1"></i> 理想上限推演</div>
+                              <p class="text-slate-300 leading-relaxed text-left font-normal">将所有影响因素同时提升到极端有利水平（+3σ），模拟"一切条件都达到最优"的情景。用于评估在最佳条件下，各对象能达到的理论上限。</p>
                               <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-t-[6px] border-r-[6px] border-l-[6px] border-l-transparent border-r-transparent border-t-slate-800"></div>
                           </div>
                       </div>
@@ -331,9 +351,9 @@
             <div v-else class="flex-1 animate-scale-in flex flex-col text-slate-800 h-full">
                <h3 class="text-xs font-black uppercase tracking-widest mb-4 flex items-center border-b pb-3" :class="shockTypeRun==='surge' ? 'text-emerald-600 border-emerald-200' : 'text-rose-600 border-rose-200'">
                    <i class="fas fa-file-contract mr-2" :class="shockTypeRun==='surge' ? 'text-emerald-500' : 'text-rose-500'"></i>
-                   <span v-if="shockTypeRun==='achilles'">极值敏感点战损报告清算单</span>
-                   <span v-else-if="shockTypeRun==='crash'">全域末日坍塌系统性核算</span>
-                   <span v-else>极值红利天花板全盘复勘</span>
+                   <span v-if="shockTypeRun==='achilles'">薄弱点压力测试报告</span>
+                   <span v-else-if="shockTypeRun==='crash'">全面承压测试报告</span>
+                   <span v-else>理想上限推演报告</span>
                </h3>
                
                <div class="flex flex-1 overflow-hidden min-h-0 space-x-5">
@@ -439,7 +459,7 @@ const props = defineProps({
   targetVariable: { type: Object, default: null }
 });
 
-const emit = defineEmits(['reset']);
+const emit = defineEmits(['reset', 'open-decision', 'live-data']);
 
 // Meta Editor States
 const showMetaEditor = ref(false);
@@ -797,12 +817,12 @@ const renderScatter = (dataData) => {
                            <div class="text-xs"><span class="text-slate-400">偏离基准:</span> <span class="${p.value[1]>0?'text-emerald-400':'text-rose-400'}">${p.value[1].toFixed(3)}</span></div>` 
     },
     xAxis: { 
-        type: 'value', name: '期望期望中位值 (μ)', 
+        type: 'value', name: '系统应有表现 (预期值)', 
         splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } },
         axisLabel: { color: '#94a3b8' }, nameTextStyle: { color: '#94a3b8' }
     },
     yAxis: { 
-        type: 'value', name: '系统级偏差 (Dev)',
+        type: 'value', name: '实绩与预期的差距',
         splitLine: { lineStyle: { color: '#1e293b' } },
         axisLabel: { color: '#94a3b8' }, nameTextStyle: { color: '#94a3b8' }
     },
@@ -850,12 +870,12 @@ const renderPPC = (ppcData) => {
 
     charts.value.ppc.setOption({
         tooltip: { trigger: 'axis' },
-        legend: { data: ['观测值真实分布', '后验预测分布 (PPC)'], bottom: 0, textStyle: { fontSize: 10 } },
+        legend: { data: ['真实业务数据', '模型推演范围 (PPC)'], bottom: 0, textStyle: { fontSize: 10 } },
         xAxis: { type: 'value', boundaryGap: false, splitLine: { show: false } },
         yAxis: { type: 'value', show: false }, // Hide artificial Y
         series: [
-            { name: '观测值真实分布', type: 'line', smooth: true, itemStyle: { color: '#10b981' }, areaStyle: { opacity: 0.1 }, data: lineA, symbol: 'none' },
-            { name: '后验预测分布 (PPC)', type: 'line', smooth: true, itemStyle: { color: '#4f46e5' }, areaStyle: { opacity: 0.2 }, data: lineP, symbol: 'none' }
+            { name: '真实业务数据', type: 'line', smooth: true, itemStyle: { color: '#10b981' }, areaStyle: { opacity: 0.1 }, data: lineA, symbol: 'none' },
+            { name: '模型推演范围 (PPC)', type: 'line', smooth: true, itemStyle: { color: '#4f46e5' }, areaStyle: { opacity: 0.2 }, data: lineP, symbol: 'none' }
         ]
     });
 };
@@ -882,7 +902,7 @@ const renderForest = (summaryDf) => {
 
   charts.value.forest.setOption({
     grid: { left: '30%', right: '10%', top: '10%', bottom: '15%' },
-    tooltip: { formatter: (p) => `${p.value[0]}<br>影响力: ${p.value[2].toFixed(3)}<br>95% HDI: [${p.value[1].toFixed(2)}, ${p.value[3].toFixed(2)}]` },
+    tooltip: { formatter: (p) => `${p.value[0]}<br>对该指标的影响力: ${p.value[2].toFixed(3)}<br>95% 置信区间: [${p.value[1].toFixed(2)}, ${p.value[3].toFixed(2)}]<br><span style="font-size:10px;color:#94a3b8">💡 正值=正向推动力 | 负值=负向拖累</span>` },
     xAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
     yAxis: { type: 'category', data: effectData.map(d => d[0]), axisLabel: { interval: 0, fontSize: 10 } },
     series: [
@@ -936,10 +956,12 @@ const updateWhatIf = (doRender = true) => {
     });
     
     if (doRender) {
-        renderScatter(newData); // Re-render smoothly!
-        if(hasGeoData.value) renderGeo(newData); // Re-render map!
-        renderDAG(props.hierarchySchema); // Keep DAG color sync
+        renderScatter(newData);
+        if(hasGeoData.value) renderGeo(newData);
+        renderDAG(props.hierarchySchema);
     }
+    // 实时推送数据到决策中枢
+    emit('live-data', { performanceData: newData, covariates: editableCovariates.value.map(c => ({ name: props.displayMapping[c.original] || c.original, original: c.original, beta: c.beta, delta: c.delta })) });
     return newData;
 };
 
@@ -1000,6 +1022,7 @@ const applyShock = (type) => {
         renderScatter(newData);
         if(hasGeoData.value) renderGeo(newData);
         renderDAG(props.hierarchySchema);
+        emit('live-data', { performanceData: newData, covariates: editableCovariates.value.map(c => ({ name: props.displayMapping[c.original] || c.original, original: c.original, beta: c.beta, delta: c.delta })) });
         
         // 5. Trigger AI War Room Decision Stream
         requestAiDecision(type, diff, impactReport.value.achillesName, worst, best);
@@ -1067,6 +1090,7 @@ const resetWhatIf = () => {
     impactReport.value = null;
     editableCovariates.value.forEach(c => c.delta = 0);
     updateWhatIf();
+    emit('live-data', null);  // 通知决策中枢恢复原始数据
     
     // Explicitly command echarts to recalculate bounding box after reappearing
     nextTick(() => {
@@ -1141,19 +1165,24 @@ const generateExecutiveSummary = () => {
     const topPos = getTopFactors('pos');
     const topNeg = getTopFactors('neg');
     
-    let text = `【智能审评意见】该拟建项目在多元环境指标上与历史【${props.displayMapping[match1.node_name] || match1.node_name}】高度重叠（多维特征相似度达 ${match1.similarity.toFixed(1)}%）。\n`;
-    
-    text += `贝叶斯引擎深度计算预测其综合首发效能落点为 ${res.expected_y.toFixed(3)}，该表现${res.expected_delta >= 0 ? '优于' : '劣于'}全局基准期望。\n`;
-    
-    if (topNeg.length > 0) {
-        text += `\n⚠️ 【核心风险警示】其「${props.displayMapping[topNeg[0].covariate] || topNeg[0].covariate}」评估极为弱势，在整个网络拓扑中构成了致命的拖累（边际削弱效应极大）。\n`;
-    }
+    let text = '';
+    text += `新项目的预期表现约为 ${res.expected_y.toFixed(3)}，`;
+    text += res.expected_delta >= 0 ? '高于历史平均水平。' : '低于历史平均水平。';
+    text += `与它条件最相似的历史对象是「${props.displayMapping[match1.node_name] || match1.node_name}」（匹配度 ${match1.similarity.toFixed(1)}%），该对象的实际表现为 ${match1.actual_y.toFixed(3)}。`;
     
     if (topPos.length > 0) {
-        text += `\n✅ 【有效缓冲利好】幸而该项目的「${props.displayMapping[topPos[0].covariate] || topPos[0].covariate}」提供了强大的势能加持，构成了一定程度的抗压护城河。\n`;
+        text += `\n\n优势因素：`;
+        text += topPos.map(f => `「${props.displayMapping[f.covariate] || f.covariate}」贡献了 +${f.contribution.toFixed(2)} 的正面推动`).join('，');
+        text += '。这些是项目的核心竞争力，应保持或加强。';
     }
     
-    text += `\n【辅助决策建议】综合模型推演，建议战略决策层参考【${props.displayMapping[match1.node_name] || match1.node_name}】过往沉淀出的实操经验，提前针对风险拖累项配置专项资金或安保倾斜，即可逆转颓势。`;
+    if (topNeg.length > 0) {
+        text += `\n\n风险因素：`;
+        text += topNeg.map(f => `「${props.displayMapping[f.covariate] || f.covariate}」造成了 ${f.contribution.toFixed(2)} 的下行压力`).join('，');
+        text += '。建议在这些方面投入资源来弥补短板。';
+    }
+    
+    text += `\n\n决策建议：参考最相似对象「${props.displayMapping[match1.node_name] || match1.node_name}」的做法，重点改善风险因素中的薄弱环节。如果能把最弱项的数值提升到历史均值水平，预期表现可提升至 ${(res.expected_y - (topNeg.length > 0 ? topNeg[0].contribution : 0)).toFixed(3)} 左右。`;
     
     executiveSummary.value = text;
 };
@@ -1199,6 +1228,93 @@ const initBenchmarkRadar = () => {
     };
     
     benchmarkRadarChart.setOption(option);
+};
+
+// --- 增强导出：含场景说明和解读的结构化报告 ---
+const exportFullReport = async () => {
+    try {
+        const data = props.modelResults?.performance_data || [];
+        const threshold = computeThreshold(data);
+        const betas = props.modelResults?.betas || {};
+        
+        // 构建报告内容
+        const date = new Date().toLocaleDateString('zh-CN');
+        const time = new Date().toLocaleTimeString('zh-CN');
+        const targetName = props.displayMapping[props.targetVariable?.name] || props.targetVariable?.name || '目标指标';
+        
+        let csvLines = [];
+        
+        // === 第一部分：场景设定 ===
+        csvLines.push('=== 场景设定 ===');
+        csvLines.push(`报告时间,${date} ${time}`);
+        csvLines.push(`评估对象数,${data.length}`);
+        csvLines.push(`组织层级数,${props.hierarchySchema?.length || 0}`);
+        props.hierarchySchema?.forEach((lvl, i) => {
+            csvLines.push(`层级${i+1},${lvl.level_name},ID列:${lvl.id_column},协变量:${(lvl.covariates || []).join('|')}`);
+        });
+        csvLines.push(`评估目标,${targetName}`);
+        csvLines.push('');
+        
+        // === 第二部分：关键因子 ===
+        csvLines.push('=== 关键影响因素（按影响力排序）===');
+        csvLines.push('因子名称,β权重,方向,解读');
+        Object.entries(betas).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1])).forEach(([k, v]) => {
+            const absV = Math.abs(v);
+            csvLines.push(`${props.displayMapping[k] || k},${v.toFixed(4)},${v > 0 ? '正面推动' : '负面拖累'},${v > 0 ? '越高越好' : '过高会拖累，注意平衡'} (影响力${absV > 0.1 ? '高' : absV > 0.03 ? '中' : '低'})`);
+        });
+        csvLines.push('');
+        
+        // === 第三部分：详细结果 ===
+        csvLines.push('=== 评估结果明细 ===');
+        csvLines.push('对象名称,实际值,预期值,偏差(σ),状态,解读,建议');
+        data.forEach(d => {
+            const dev = d.Deviation;
+            const absDev = Math.abs(dev);
+            let status, desc, advice;
+            if (dev < -2 * threshold) { status = '紧急'; desc = '严重低于预期'; advice = '优先排查资源配置是否不足'; }
+            else if (dev < -threshold) { status = '关注'; desc = '略低于预期'; advice = '纳入重点观察名单'; }
+            else if (dev > 2 * threshold) { status = '标杆'; desc = '显著超预期'; advice = '总结经验并推广'; }
+            else if (dev > threshold) { status = '优良'; desc = '略超预期'; advice = '保持并关注其做法'; }
+            else { status = '正常'; desc = '符合预期'; advice = '维持现有策略'; }
+            csvLines.push(`${props.displayMapping[d.NodeName] || d.NodeName},${d.Actual},${d.Expected.toFixed(3)},${dev > 0 ? '+' : ''}${absDev.toFixed(2)}σ,${status},${desc},${advice}`);
+        });
+        csvLines.push('');
+        
+        // === 第四部分：统计摘要 ===
+        const bright = data.filter(d => (d.Status === 'Bright Spot' || d.Status === 'Bright')).length;
+        const dark = data.filter(d => (d.Status === 'Dark Spot' || d.Status === 'Dark')).length;
+        csvLines.push('=== 统计摘要 ===');
+        csvLines.push(`表现突出,${bright}个,(${(bright/data.length*100).toFixed(1)}%)`);
+        csvLines.push(`需要关注,${dark}个,(${(dark/data.length*100).toFixed(1)}%)`);
+        csvLines.push(`运行正常,${data.length - bright - dark}个,(${((data.length-bright-dark)/data.length*100).toFixed(1)}%)`);
+        
+        const csv = csvLines.join('\n');
+        
+        try {
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+            const filePath = await save({
+                defaultPath: `分析报告_${date.replace(/\//g, '-')}.csv`,
+                filters: [{ name: 'CSV', extensions: ['csv'] }]
+            });
+            if (filePath) {
+                await writeTextFile(filePath, '\uFEFF' + csv);
+                alert('报告已保存，包含场景设定、关键因子、详细结果和统计摘要。');
+            }
+        } catch(e) {
+            // Fallback: download via browser
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `分析报告_${date.replace(/\//g, '-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    } catch(e) {
+        console.error('Export error:', e);
+        alert('导出失败，请重试。');
+    }
 };
 
 // --- EXPORT LOGIC ---
