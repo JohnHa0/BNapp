@@ -191,7 +191,7 @@
     <footer class="bg-white border-t border-slate-200 py-1.5 px-6 flex justify-between items-center text-[10px] text-slate-400 z-40">
       <span class="flex items-center gap-2">
         <span class="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
-        DeepBayes v1.0.6
+        DeepBayes v1.0.7
       </span>
       <div class="flex items-center gap-3">
         <span class="flex items-center gap-1.5">

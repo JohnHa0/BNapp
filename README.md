@@ -151,8 +151,8 @@ netstat -ano | findstr 18521
 ## 推送更新
 <!-- git tag -d v1.0.3
 git push origin :refs/tags/v1.0.3 -->
-git tag v1.0.3
-git push origin v1.0.3
+git tag v1.0.7
+git push origin v1.0.7
 
 
 git tag -a v1.0.4 -m "DeepBayes v1.0.4: Advanced Strategic Simulator & UX Polish. 🛠️ 推演系统 (Achilles/Crash/Surge), 📊 战损核算 (VAR) 深度集成, 🧠 全量智库级 Tooltip, 🏗️ UI 稳定性优化 (ECharts Resize Fix)."
