@@ -37,7 +37,11 @@
               <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center"><i class="fas fa-balance-scale text-indigo-600"></i></div>
               对标演算 · 新项目预估
             </h3>
-            <button @click="showBenchmarkModal = false" class="text-slate-400 hover:text-slate-600 transition-colors"><i class="fas fa-times text-xl"></i></button>
+            <div class="flex items-center gap-2">
+              <button @click="showBenchmarkModal = false" class="px-3 py-1.5 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center">
+                <i class="fas fa-times mr-1"></i>关闭
+              </button>
+            </div>
         </div>
         <p class="text-xs text-slate-500 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 shrink-0 leading-relaxed">
           输入新项目在各维度上的预期数值，系统会在历史数据中找出条件最相似的已有对象，用当前模型的β权重推算新项目的预期表现。
@@ -150,8 +154,19 @@
                        </div>
                    </div>
                </div>
+                <!-- 导出按钮 -->
+                <div class="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
+                    <button @click="exportBenchmarkPDF" :disabled="isBenchmarkPdfExporting" class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas" :class="isBenchmarkPdfExporting ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
+                        <span class="ml-1.5">{{ isBenchmarkPdfExporting ? '导出中…' : '导出演算报告 (PDF)' }}</span>
+                    </button>
+                    <button @click="exportBenchmarkHTML" :disabled="isBenchmarkHtmlExporting" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas" :class="isBenchmarkHtmlExporting ? 'fa-spinner fa-spin' : 'fa-file-code'"></i>
+                        <span class="ml-1.5">{{ isBenchmarkHtmlExporting ? '导出中…' : '导出演算报告 (HTML)' }}</span>
+                    </button>
+                </div>
             </div>
-        </div>
+         </div>
       </div>
     </div>
 
@@ -1373,5 +1388,218 @@ const exportCSV = async () => {
         console.error("导出数据表失败:", e);
     }
 };
+
+
+// --- 对标演算 PDF 导出 ---
+const isBenchmarkPdfExporting = ref(false);
+const isBenchmarkHtmlExporting = ref(false);
+
+const exportBenchmarkPDF = async () => {
+  if (isBenchmarkPdfExporting.value || !benchmarkResults.value) return;
+  isBenchmarkPdfExporting.value = true;
+  try {
+    const html2canvas = (await import('html2canvas')).default;
+    const { jsPDF } = await import('jspdf');
+    const res = benchmarkResults.value;
+    const report = buildBenchmarkSections();
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const margin = 14;
+    const usableHeight = 297 - 2 * margin;
+    const contentWidth = 210 - 2 * margin;
+    let currentY = margin;
+
+    const renderCSS = 'position:fixed;left:-9999px;top:0;width:800px;padding:16px 20px;font-family:\'Microsoft YaHei\',\'PingFang SC\',sans-serif;color:#1e293b;background:white;line-height:1.6;';
+
+    for (let i = 0; i < report.sections.length; i++) {
+      const sectionHTML = report.sections[i].html;
+      const container = document.createElement('div');
+      container.innerHTML = sectionHTML;
+      container.style.cssText = renderCSS;
+      document.body.appendChild(container);
+      await new Promise(r => setTimeout(r, 200));
+      const canvas = await html2canvas(container, {
+        scale: 1.5, useCORS: true, logging: false,
+        width: 800, height: container.scrollHeight,
+      });
+      document.body.removeChild(container);
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
+
+      if (imgHeight <= usableHeight) {
+        if (currentY + imgHeight > margin + usableHeight) {
+          pdf.addPage();
+          currentY = margin;
+        }
+        pdf.addImage(imgData, 'JPEG', margin, currentY, contentWidth, imgHeight);
+        currentY += imgHeight + 5;
+      } else {
+        if (i > 0) { pdf.addPage(); currentY = margin; }
+        let remaining = imgHeight;
+        let pn = 0;
+        while (remaining > 0) {
+          if (pn > 0) { pdf.addPage(); currentY = margin; }
+          pdf.addImage(imgData, 'JPEG', margin, currentY - pn * usableHeight, contentWidth, imgHeight);
+          remaining -= usableHeight;
+          pn++;
+        }
+        currentY = margin + (imgHeight % usableHeight || usableHeight);
+      }
+    }
+
+    const defaultName = '对标演算报告_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.pdf';
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      const filePath = await save({ defaultPath: defaultName, filters: [{ name: 'PDF Document', extensions: ['pdf'] }] });
+      if (filePath) {
+        const pdfBlob = pdf.output('blob');
+        const buf = await pdfBlob.arrayBuffer();
+        await writeFile(filePath, new Uint8Array(buf));
+      }
+    } catch { pdf.save(defaultName); }
+  } catch (e) {
+    console.error('Benchmark PDF export error:', e);
+    alert('导出 PDF 失败：' + (e.message || e));
+  } finally {
+    isBenchmarkPdfExporting.value = false;
+  }
+};
+
+const exportBenchmarkHTML = async () => {
+  if (isBenchmarkHtmlExporting.value || !benchmarkResults.value) return;
+  isBenchmarkHtmlExporting.value = true;
+  try {
+    const report = buildBenchmarkSections();
+      const fullMeta = '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1.0">\n  <title>\u5bf9\u6807\u6f14\u7b97\u62a5\u544a</title>\n  <style>body{background:#f1f5f9;padding:40px 20px;margin:0;font-family:sans-serif}</style>\n</head>\n<body>\n' + report.fullHTML + '\n</body>\n</html>';
+    const defaultName = '对标演算报告_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.html';
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      const filePath = await save({ defaultPath: defaultName, filters: [{ name: 'HTML Document', extensions: ['html'] }] });
+      if (filePath) { await writeTextFile(filePath, fullMeta); }
+    } catch {
+      const blob = new Blob(['\uFEFF' + fullMeta], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = defaultName; a.click();
+      URL.revokeObjectURL(url);
+    }
+  } catch (e) {
+    console.error('HTML export error:', e);
+    alert('导出 HTML 失败：' + (e.message || e));
+  } finally {
+    isBenchmarkHtmlExporting.value = false;
+  }
+};
+
+// 构建对标演算报告的 sections 和 fullHTML
+const buildBenchmarkSections = () => {
+  const res = benchmarkResults.value;
+  const match1 = res.matches && res.matches[0];
+  const topPos = getTopFactors('pos');
+  const topNeg = getTopFactors('neg');
+  const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const displayMap = props.displayMapping || {};
+
+  const coverCSS = 'font-family:\'Microsoft YaHei\',\'PingFang SC\',sans-serif;color:#1e293b;max-width:700px;margin:auto;';
+  const sectionCSS = 'background:#f8fafc;border-radius:14px;padding:22px;margin-bottom:22px;border:1px solid #e2e8f0;';
+  const sections = [];
+
+  // === S0: 封面 + 摘要 ===
+  sections.push({ html: `<div style="${coverCSS}padding:0 10px;">
+    <div style="text-align:center;margin-bottom:24px;border-bottom:3px solid #4f46e5;padding-bottom:16px;">
+      <h1 style="font-size:24px;font-weight:900;color:#0f172a;margin:0;">对标演算报告</h1>
+      <p style="font-size:14px;color:#6366f1;margin:8px 0 2px;">基于贝叶斯层次模型的历史对标与效能预估</p>
+      <p style="font-size:11px;color:#94a3b8;margin:0;">${date} · ${time}</p>
+    </div>
+    <div style="${sectionCSS}background:#f0f4ff;border-color:#c7d2fe;">
+      <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 12px;">◆ 演算场景</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;line-height:2;">
+        <tr><td style="color:#64748b;width:115px;">分析方法</td><td style="font-weight:700;">马氏距离 K-NN + β权重归因</td></tr>
+        <tr><td style="color:#64748b;">历史样本量</td><td style="font-weight:700;">${res.matches ? res.matches.length : 0} 个匹配对象</td></tr>
+        <tr><td style="color:#64748b;">报告时间</td><td style="font-weight:700;">${date} ${time}</td></tr>
+      </table>
+    </div>
+    <div style="${sectionCSS}">
+      <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 12px;">◆ 演算结果摘要</h2>
+      <div style="display:flex;gap:14px;margin-bottom:16px;">
+        <div style="flex:1;background:linear-gradient(135deg,#e0e7ff,#eef2ff);border-radius:12px;padding:16px;text-align:center;border:1px solid #c7d2fe;">
+          <div style="font-size:11px;color:#6366f1;font-weight:700;margin-bottom:4px;">预期表现</div>
+          <div style="font-size:26px;font-weight:900;color:#4338ca;">${(res.expected_y || 0).toFixed(3)}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:4px;">模型推算的应有水平</div>
+        </div>
+        ${match1 ? `<div style="flex:1;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;padding:16px;text-align:center;border:1px solid #a7f3d0;">
+          ${(()=>{const d=res.expected_delta||0;const clr=d>=0?'#10b981':'#f43f5e';const arr=d>=0?'↑':'↓';const lbl=d>=0?'高于均值':'低于均值';return '<div style="font-size:11px;color:#059669;font-weight:700;margin-bottom:4px;">相对基准</div><div style="font-size:26px;font-weight:900;color:'+clr+';">'+arr+' '+Math.abs(d).toFixed(3)+'</div><div style="font-size:9px;color:#94a3b8;margin-top:4px;">'+lbl+'</div>';})()}
+        </div>` : ''}
+        ${match1 ? `<div style="flex:1;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:16px;text-align:center;border:1px solid #fde68a;">
+          <div style="font-size:11px;color:#d97706;font-weight:700;margin-bottom:4px;">最相似对象</div>
+          <div style="font-size:16px;font-weight:900;color:#1e293b;">${displayMap[match1.node_name] || match1.node_name || '-'}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:4px;">匹配度 ${(match1.similarity||0).toFixed(0)}%</div>
+        </div>` : ''}
+      </div>
+      ${match1 ? '<p style="font-size:12px;color:#475569;line-height:1.8;padding:12px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">新项目的预期表现约为 <strong>' + (res.expected_y||0).toFixed(3) + '</strong>，' + (res.expected_delta>=0?'高于历史平均水平。':'低于历史平均水平。') + '与它条件最相似的历史对象是『' + (displayMap[match1.node_name]||match1.node_name) + '』（匹配度 ' + (match1.similarity||0).toFixed(1) + '%），该对象的实际表现为 ' + (match1.actual_y||0).toFixed(3) + '。</p>' : ''}
+    </div>
+  </div>` });
+
+  // === S1: 因素贡献拆解 ===
+  if (res.factors && res.factors.length > 0) {
+    const factors = res.factors.slice(0, 12);
+    sections.push({ html: `<div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 12px;">◆ 因素贡献拆解</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#eef2ff;"><th style="padding:8px 12px;text-align:left;border-bottom:2px solid #c7d2fe;">因素</th><th style="padding:8px 12px;text-align:center;border-bottom:2px solid #c7d2fe;">输入值</th><th style="padding:8px 12px;text-align:center;border-bottom:2px solid #c7d2fe;">全局均值</th><th style="padding:8px 12px;text-align:center;border-bottom:2px solid #c7d2fe;">贡献率</th><th style="padding:8px 12px;text-align:center;border-bottom:2px solid #c7d2fe;">方向</th></tr></thead>
+          <tbody>
+            ${factors.map(f => {
+              const name = displayMap[f.covariate] || f.covariate || '-';
+              const contrib = f.contribution || 0;
+              const color = contrib >= 0 ? '#10b981' : '#f43f5e';
+              return '<tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:8px 12px;font-weight:600;">' + name + '</td>' +
+                '<td style="padding:8px 12px;text-align:center;font-family:monospace;">' + (f.input||0).toFixed(2) + '</td>' +
+                '<td style="padding:8px 12px;text-align:center;font-family:monospace;color:#94a3b8;">' + (f.mean||0).toFixed(2) + '</td>' +
+                '<td style="padding:8px 12px;text-align:center;font-family:monospace;font-weight:700;color:' + color + ';">' + (contrib>=0?'+':'') + contrib.toFixed(3) + '</td>' +
+                '<td style="padding:8px 12px;text-align:center;"><span style="background:' + (contrib>=0?'#d1fae5':'#fee2e2') + ';color:' + color + ';padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">' + (contrib>=0?'正面推动':'负面拖累') + '</span></td></tr>';
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` });
+  }
+
+  // === S2: 优势与风险 ===
+  if (topPos.length > 0 || topNeg.length > 0) {
+    sections.push({ html: `<div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 12px;">◆ 优势与风险因素</h2>
+        ${topPos.length > 0 ? '<div style="margin-bottom:12px;"><p style="font-size:12px;font-weight:700;color:#059669;margin:0 0 6px;">✅ 优势因素（核心竞争力）</p><div style="display:flex;flex-wrap:wrap;gap:6px;">' + topPos.map(f => '<span style="background:#d1fae5;color:#065f46;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;">' + (displayMap[f.covariate]||f.covariate) + ' +' + (f.contribution||0).toFixed(2) + '</span>').join('') + '</div><p style="font-size:11px;color:#64748b;margin-top:6px;">这些是项目的核心竞争力，应保持或加强。</p></div>' : ''}
+        ${topNeg.length > 0 ? '<div><p style="font-size:12px;font-weight:700;color:#dc2626;margin:0 0 6px;">⚠️ 风险因素（需关注改进）</p><div style="display:flex;flex-wrap:wrap;gap:6px;">' + topNeg.map(f => '<span style="background:#fee2e2;color:#991b1b;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;">' + (displayMap[f.covariate]||f.covariate) + ' ' + (f.contribution||0).toFixed(2) + '</span>').join('') + '</div><p style="font-size:11px;color:#64748b;margin-top:6px;">建议在这些方面投入资源来弥补短板。</p></div>' : ''}
+      </div>
+    </div>` });
+  }
+
+  // === S3: 最相似对象 ===
+  if (res.matches && res.matches.length > 0) {
+    sections.push({ html: `<div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 12px;">◆ 条件最相似对象</h2>
+        ${res.matches.slice(0, 5).map((m, i) => {
+          const rc = i === 0 ? '#f59e0b' : (i === 1 ? '#94a3b8' : '#92400e');
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:8px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;border-left:3px solid ' + rc + ';"><div><span style="display:inline-block;width:24px;height:24px;background:' + rc + ';color:white;border-radius:50%;text-align:center;line-height:24px;font-size:11px;font-weight:700;margin-right:10px;">' + (i+1) + '</span><span style="font-weight:700;font-size:13px;">' + (displayMap[m.node_name]||m.node_name) + '</span></div><div style="text-align:right;"><div style="font-size:10px;color:#64748b;">匹配度 <strong>' + (m.similarity||0).toFixed(1) + '%</strong> · 距离 ' + (m.distance||0).toFixed(3) + '</div><div style="font-size:11px;color:#1e293b;font-weight:700;">实际效能: ' + (m.actual_y||0).toFixed(3) + '</div></div></div>';
+        }).join('')}
+      </div>
+      <div style="text-align:center;padding-top:18px;border-top:1px solid #e2e8f0;margin-top:26px;">
+        <p style="font-size:11px;color:#94a3b8;">本报告由系统自动生成，基于历史规律的推算，不等同于精确预测。建议结合业务判断综合决策。</p>
+      </div>
+    </div>` });
+  }
+
+  const fullHTML = sections.map(s => s.html).join('');
+  return { sections, fullHTML };
+};
+
+
 
 </script>

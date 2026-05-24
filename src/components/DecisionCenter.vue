@@ -324,14 +324,23 @@
               </span>
             </h3>
             <div class="flex space-x-2">
+              <button @click="exportPDF" :disabled="isPdfExporting" class="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas" :class="isPdfExporting ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
+                <span class="ml-1.5">{{ isPdfExporting ? '导出中' : '导出 PDF' }}</span>
+              </button>
+              <button @click="exportHTML" :disabled="isHtmlExporting" class="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas" :class="isHtmlExporting ? 'fa-spinner fa-spin' : 'fa-file-code'"></i>
+                <span class="ml-1.5">{{ isHtmlExporting ? '导出中' : '导出 HTML' }}</span>
+              </button>
+              <div class="w-px h-6 bg-slate-200 self-center"></div>
               <button @click="printReport" class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center">
                 <i class="fas fa-print mr-1.5"></i>打印
               </button>
               <button @click="copyReport" class="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors flex items-center">
                 <i class="fas fa-copy mr-1.5"></i>复制
               </button>
-              <button @click="showReportModal = false" class="text-slate-400 hover:text-slate-600 transition-colors">
-                <i class="fas fa-times text-xl"></i>
+              <button @click="showReportModal = false" class="px-3 py-1.5 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors flex items-center">
+                <i class="fas fa-times mr-1"></i>关闭
               </button>
             </div>
           </div>
@@ -360,6 +369,8 @@ defineEmits(['back']);
 const showReportModal = ref(false);
 const reportContentRef = ref(null);
 const isGeneratingReport = ref(false);
+const isPdfExporting = ref(false);
+const isHtmlExporting = ref(false);
 const reportHTML = ref('');
 
 // 是否处于实时推演模式
@@ -634,6 +645,330 @@ const copyReport = () => {
     navigator.clipboard.writeText(text).then(() => {
       alert('简报内容已复制到剪贴板');
     }).catch(() => alert('复制失败，请手动选择文本复制'));
+  }
+};
+
+// ── 简报 PDF 导出 ──
+const pdfSections = computed(() => {
+  const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+  const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const modeLabel = isLiveMode.value ? '（推演模拟数据·实时）' : '';
+  const rm = riskMatrix.value;
+  const cs = confidenceScore.value;
+  const cColor = confidenceColor.value;
+  const sections = [];
+
+  // SVG 可信度环
+  const svgRing = `
+    <div style="text-align:center;margin:16px 0;">
+      <svg width="110" height="110" viewBox="0 0 96 96" style="transform:rotate(-90deg);">
+        <circle cx="48" cy="48" r="40" fill="none" stroke="#e2e8f0" stroke-width="7"/>
+        <circle cx="48" cy="48" r="40" fill="none" stroke="${cColor}" stroke-width="7"
+          stroke-dasharray="${(2 * Math.PI * 40).toFixed(1)}"
+          stroke-dashoffset="${(2 * Math.PI * 40 * (1 - cs / 100)).toFixed(1)}"
+          stroke-linecap="round"/>
+      </svg>
+      <div style="position:relative;top:-92px;font-size:26px;font-weight:900;color:${cColor};">${cs}%</div>
+      <div style="position:relative;top:-94px;font-size:10px;color:#94a3b8;font-weight:600;">可信度</div>
+    </div>`;
+
+  // 封面 CSS 框架
+  const coverCSS = 'font-family:\'Microsoft YaHei\',\'PingFang SC\',sans-serif;color:#1e293b;max-width:700px;margin:auto;';
+  const sectionCSS = 'background:#f8fafc;border-radius:14px;padding:22px;margin-bottom:22px;border:1px solid #e2e8f0;';
+
+  // === S0: 封面 + 分析概要 ===
+  sections.push({ html: `
+    <div style="${coverCSS}padding:0 10px;">
+      <div style="text-align:center;margin-bottom:24px;border-bottom:3px solid #4f46e5;padding-bottom:16px;">
+        <h1 style="font-size:24px;font-weight:900;color:#0f172a;margin:0;">决策研判简报 ${modeLabel}</h1>
+        <p style="font-size:14px;color:#6366f1;margin:8px 0 2px;">基于贝叶斯层次网络模型的分析报告</p>
+        <p style="font-size:11px;color:#94a3b8;margin:0;">${date} · ${time}</p>
+      </div>
+      <div style="${sectionCSS}background:#f0f4ff;border-color:#c7d2fe;">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 14px;">◆ 分析概要</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;line-height:2;">
+          <tr><td style="color:#64748b;width:115px;">评估对象数</td><td style="font-weight:700;">${summary.value.totalNodes} 个</td></tr>
+          <tr><td style="color:#64748b;">组织层级</td><td style="font-weight:700;">${summary.value.totalLevels} 层</td></tr>
+          ${props.hierarchySchema ? props.hierarchySchema.map((lvl, i) => `
+          <tr><td style="color:#94a3b8;font-size:11px;padding-left:8px;">└ 层级 ${i + 1}</td><td style="font-size:11px;">${lvl.level_name}（ID: ${lvl.id_column}，因子：${(lvl.covariates || []).map(c => props.displayMapping[c] || c).join('、') || '无'}）</td></tr>
+          `).join('') : ''}
+          <tr><td style="color:#64748b;">评估目标</td><td style="font-weight:700;">${props.targetVariable?.name || '目标指标'}</td></tr>
+          <tr><td style="color:#64748b;">分析方法</td><td style="font-size:11px;color:#475569;">层次贝叶斯网络（MCMC后验采样），排除客观条件差异后的净贡献评估</td></tr>
+          <tr><td style="color:#64748b;">使用限制</td><td style="font-size:11px;color:#94a3b8;">分析关联关系，不等同于因果关系。建议结合业务经验综合判断。</td></tr>
+        </table>
+        <div style="display:flex;gap:14px;margin-top:18px;">
+          <div style="flex:1;background:linear-gradient(135deg,#d1fae5,#ecfdf5);border-radius:12px;padding:16px;text-align:center;border:1px solid #a7f3d0;">
+            <div style="font-size:28px;font-weight:900;color:#059669;">${summary.value.brightCount}</div>
+            <div style="font-size:12px;font-weight:700;color:#065f46;">表现突出</div>
+            <div style="font-size:10px;color:#6ee7b7;">超出预期</div>
+          </div>
+          <div style="flex:1;background:linear-gradient(135deg,#fef3c7,#fffbeb);border-radius:12px;padding:16px;text-align:center;border:1px solid #fcd34d;">
+            <div style="font-size:28px;font-weight:900;color:#d97706;">${summary.value.neutralCount}</div>
+            <div style="font-size:12px;font-weight:700;color:#92400e;">运行正常</div>
+            <div style="font-size:10px;color:#fbbf24;">符合预期</div>
+          </div>
+          <div style="flex:1;background:linear-gradient(135deg,#fee2e2,#fef2f2);border-radius:12px;padding:16px;text-align:center;border:1px solid #fecaca;">
+            <div style="font-size:28px;font-weight:900;color:#dc2626;">${summary.value.darkCount}</div>
+            <div style="font-size:12px;font-weight:700;color:#991b1b;">需要关注</div>
+            <div style="font-size:10px;color:#fca5a5;">低于预期</div>
+          </div>
+        </div>
+        ${svgRing}
+        <p style="font-size:11px;color:#64748b;text-align:center;margin-top:4px;">综合数据量与模型收敛性评估 · 可信度越高结论越可靠</p>
+      </div>
+    </div>` });
+
+  // === S1: 推演参数（如适用）===
+  if (isLiveMode.value && props.liveCovariates) {
+    sections.push({ html: `
+    <div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}background:#fffbeb;border-color:#fcd34d;">
+        <h2 style="font-size:17px;font-weight:800;color:#d97706;margin:0 0 12px;">⚙ 参数调整记录（前置条件）</h2>
+        <p style="font-size:12px;color:#92400e;margin-bottom:12px;">以下参数在原始分析基础上进行了调整，当前报告反映调整后的模拟推演结果。β 为正表示该指标越高越好，为负表示过高反而拖累。调整幅度以标准差(σ)为单位。</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="background:#fef3c7;"><th style="padding:6px 10px;text-align:left;border-bottom:2px solid #fbbf24;">参数名称</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid #fbbf24;">β</th><th style="padding:6px 10px;text-align:center;border-bottom:2px solid #fbbf24;">调整幅度</th><th style="padding:6px 10px;text-align:left;border-bottom:2px solid #fbbf24;">含义</th></tr></thead>
+          <tbody>
+            ${props.liveCovariates.filter(c => Math.abs(c.delta) > 0.01).map(c => `
+              <tr style="border-bottom:1px solid #fde68a;">
+                <td style="padding:6px 10px;font-weight:700;">${c.name}</td>
+                <td style="padding:6px 10px;text-align:center;font-family:monospace;color:${c.beta > 0 ? '#10b981' : '#f43f5e'};">${c.beta > 0 ? '+' : ''}${c.beta.toFixed(4)}</td>
+                <td style="padding:6px 10px;text-align:center;font-family:monospace;font-weight:700;color:${c.delta > 0 ? '#10b981' : '#f43f5e'};">${c.delta > 0 ? '+' : ''}${c.delta.toFixed(1)}σ</td>
+                <td style="padding:6px 10px;font-size:11px;color:#78350f;">${c.delta > 0 ? '上调' : '下调'}${Math.abs(c.delta) > 2 ? '（大幅）' : Math.abs(c.delta) > 1 ? '（中幅）' : '（微调）'}</td>
+              </tr>
+            `).join('')}
+            ${props.liveCovariates.filter(c => Math.abs(c.delta) > 0.01).length === 0 ? '<tr><td colspan="4" style="padding:6px;text-align:center;color:#92400e;">所有参数保持默认值</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>` });
+  }
+
+  // === S2: 关键驱动因素 ===
+  sections.push({ html: `
+    <div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 6px;">◆ 一、关键驱动因素</h2>
+        <p style="font-size:12px;color:#64748b;margin:0 0 14px;">以下因素对结果的影响力最大，排序靠前的应作为资源配置的优先方向。</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#eef2ff;"><th style="padding:10px 14px;text-align:left;border-bottom:2px solid #c7d2fe;">因素</th><th style="padding:10px 14px;text-align:right;border-bottom:2px solid #c7d2fe;">影响 (β)</th><th style="padding:10px 14px;text-align:left;border-bottom:2px solid #c7d2fe;">含义</th></tr></thead>
+          <tbody>
+            ${topDrivers.value.map((d, i) => `
+              <tr style="border-bottom:1px solid #e2e8f0;${i === 0 ? 'background:#f0fdf4;' : ''}">
+                <td style="padding:10px 14px;font-weight:700;">${i + 1}. ${d.name}</td>
+                <td style="padding:10px 14px;text-align:right;font-family:monospace;font-weight:700;color:${d.beta > 0 ? '#059669' : '#dc2626'};">${d.beta > 0 ? '+' : ''}${d.beta.toFixed(4)}</td>
+                <td style="padding:10px 14px;font-size:12px;color:#475569;">${d.beta > 0 ? '越高越好，正面推动' : '过高反而拖累，注意平衡'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` });
+
+  // === S3: 关注优先级 ===
+  sections.push({ html: `
+    <div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 6px;">◆ 二、关注优先级</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#eef2ff;"><th style="padding:10px 14px;text-align:left;border-bottom:2px solid #c7d2fe;">对象</th><th style="padding:10px 14px;text-align:right;border-bottom:2px solid #c7d2fe;">偏差</th><th style="padding:10px 14px;text-align:left;border-bottom:2px solid #c7d2fe;">判断</th><th style="padding:10px 14px;text-align:left;border-bottom:2px solid #c7d2fe;">建议</th></tr></thead>
+          <tbody>
+            ${priorityRanked.value.slice(0, 10).map((d, i) => `
+              <tr style="border-bottom:1px solid #e2e8f0;${d.priority === 'critical' ? 'background:#fff5f5;' : d.priority === 'high' ? 'background:#fffbeb;' : ''}">
+                <td style="padding:10px 14px;font-weight:700;">${i + 1}. ${d.name}</td>
+                <td style="padding:10px 14px;text-align:right;font-family:monospace;font-weight:700;color:${d.Deviation > 0 ? '#059669' : '#dc2626'};">${d.Deviation > 0 ? '+' : ''}${Math.abs(d.Deviation).toFixed(2)}σ</td>
+                <td style="padding:10px 14px;font-size:11px;color:#475569;">${d.devDesc || ''}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#475569;">${d.advice}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` });
+
+  // === S4: 风险分布热力图 ===
+  const heatCell = (label, count, bg, color, weight, borderClr) => `
+    <td style="padding:10px;background:${count > 0 ? bg : '#f8fafc'};color:${count > 0 ? color : '#cbd5e1'};font-weight:${weight};font-size:${count > 0 && label === 'high_high' ? '15px' : '12px'};border:${count > 0 ? '2px' : '1px'} solid ${count > 0 ? borderClr : '#e2e8f0'};">${count}</td>`;
+
+  sections.push({ html: `
+    <div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 6px;">◆ 三、风险分布</h2>
+        <p style="font-size:12px;color:#64748b;margin:0 0 14px;">高风险区共 <strong style="color:#dc2626;">${rm.highRiskTotal}</strong> 个对象（占 ${rm.highRiskPct}%）。${rm.cells.high_high.count > 0 ? rm.cells.high_high.nodes.slice(0, 5).join('、') + (rm.cells.high_high.nodes.length > 5 ? ' 等' : '') + ' 需优先处置。' : ''}</p>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:center;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
+          <tr style="background:#f1f5f9;">
+            <td style="padding:10px;color:#64748b;font-weight:700;">不确定性 →<br>↓ 偏差幅度</td>
+            <td style="padding:10px;color:#94a3b8;font-weight:600;">小</td>
+            <td style="padding:10px;color:#94a3b8;font-weight:600;">中</td>
+            <td style="padding:10px;color:#94a3b8;font-weight:600;">大</td>
+          </tr>
+          <tr>
+            <td style="padding:10px;color:#64748b;font-weight:600;background:#f8fafc;">大</td>
+            ${heatCell('low_high', rm.cells.low_high.count, '#fef2f2', '#dc2626', 700, '#fecaca')}
+            ${heatCell('mid_high', rm.cells.mid_high.count, '#fef2f2', '#dc2626', 700, '#fecaca')}
+            ${heatCell('high_high', rm.cells.high_high.count, '#fee2e2', '#dc2626', 900, '#fca5a5')}
+          </tr>
+          <tr>
+            <td style="padding:10px;color:#64748b;font-weight:600;background:#f8fafc;">中</td>
+            ${heatCell('low_mid', rm.cells.low_mid.count, '#fffbeb', '#d97706', 700, '#fde68a')}
+            ${heatCell('mid_mid', rm.cells.mid_mid.count, '#fffbeb', '#d97706', 700, '#fde68a')}
+            ${heatCell('high_mid', rm.cells.high_mid.count, '#fff7ed', '#ea580c', 700, '#fed7aa')}
+          </tr>
+          <tr>
+            <td style="padding:10px;color:#64748b;font-weight:600;background:#f8fafc;">小</td>
+            ${heatCell('low_low', rm.cells.low_low.count, '#f0fdf4', '#059669', 700, '#a7f3d0')}
+            ${heatCell('mid_low', rm.cells.mid_low.count, '#f0fdf4', '#059669', 700, '#a7f3d0')}
+            ${heatCell('high_low', rm.cells.high_low.count, '#fffbeb', '#d97706', 700, '#fde68a')}
+          </tr>
+        </table>
+        ${rm.cells.high_high.count > 0 ? `
+        <div style="background:#fff5f5;border-radius:8px;padding:12px;margin-top:12px;border-left:4px solid #ef4444;">
+          <span style="font-size:12px;font-weight:700;color:#dc2626;">『偏离大+影响大』（最紧急）：</span>
+          <span style="font-size:12px;color:#991b1b;">${rm.cells.high_high.nodes.join('、')}</span>
+        </div>` : ''}
+      </div>
+    </div>` });
+
+  // === S5: 行动建议 ===
+  sections.push({ html: `
+    <div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 6px;">◆ 四、行动建议</h2>
+        ${recommendations.value.map(r => `
+          <div style="margin-bottom:14px;padding:14px;border-radius:10px;border-left:5px solid ${r.type === 'urgent' ? '#ef4444' : r.type === 'strategic' ? '#6366f1' : '#10b981'};background:${r.type === 'urgent' ? '#fff5f5' : r.type === 'strategic' ? '#f5f3ff' : '#f0fdf4'};">
+            <p style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 6px;">${r.type === 'urgent' ? '立即处置' : r.type === 'strategic' ? '战略调整' : '经验推广'}：${r.scope}</p>
+            <p style="font-size:13px;color:#334155;margin:0 0 4px;">${r.content}</p>
+            ${r.expectedImpact ? '<p style="font-size:11px;color:#94a3b8;margin:0;">预期效果：' + r.expectedImpact + '</p>' : ''}
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;padding-top:18px;border-top:1px solid #e2e8f0;margin-top:26px;">
+        <p style="font-size:11px;color:#94a3b8;">本报告由系统自动生成，建议基于数据推算，实际执行请结合业务判断。</p>
+      </div>
+    </div>` });
+
+  // 生成合并的完整 HTML（供预览和 HTML 导出用）
+  const fullHTML = sections.map(s => s.html).join('');
+
+  return { sections, fullHTML };
+});
+
+// 辅助：渲染 HTML 为 canvas
+const renderSectionCanvas = async (html2canvas, sectionHTML) => {
+  const container = document.createElement('div');
+  container.innerHTML = sectionHTML;
+  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;padding:16px 20px;font-family:\'Microsoft YaHei\',\'PingFang SC\',sans-serif;color:#1e293b;background:white;line-height:1.6;';
+  document.body.appendChild(container);
+  await new Promise(r => setTimeout(r, 200));
+  const canvas = await html2canvas(container, {
+    scale: 1.5, useCORS: true, logging: false,
+    width: 800, height: container.scrollHeight,
+  });
+  document.body.removeChild(container);
+  return canvas;
+};
+
+const exportPDF = async () => {
+  if (isPdfExporting.value) return;
+  isPdfExporting.value = true;
+  try {
+    const html2canvas = (await import('html2canvas')).default;
+    const { jsPDF } = await import('jspdf');
+
+    const report = pdfSections.value;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const margin = 14;
+    const usableHeight = 297 - 2 * margin;
+    const contentWidth = 210 - 2 * margin;
+    let currentY = margin;
+
+    for (let i = 0; i < report.sections.length; i++) {
+      const sectionHTML = report.sections[i].html;
+      const canvas = await renderSectionCanvas(html2canvas, sectionHTML);
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
+
+      if (imgHeight <= usableHeight) {
+        // 完整放入一页
+        if (currentY + imgHeight > margin + usableHeight) {
+          pdf.addPage();
+          currentY = margin;
+        }
+        pdf.addImage(imgData, 'JPEG', margin, currentY, contentWidth, imgHeight);
+        currentY += imgHeight + 5;
+      } else {
+        // 超过一页——切片渲染
+        if (i > 0) { pdf.addPage(); currentY = margin; }
+        let remaining = imgHeight;
+        let pn = 0;
+        const yOffsets = [margin];
+        while (remaining > 0) {
+          if (pn > 0) { pdf.addPage(); currentY = margin; }
+          pdf.addImage(imgData, 'JPEG', margin, currentY - pn * usableHeight, contentWidth, imgHeight);
+          remaining -= usableHeight;
+          pn++;
+        }
+        currentY = margin + (imgHeight % usableHeight || usableHeight);
+      }
+    }
+
+    const date = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-');
+    const defaultName = '决策研判简报_' + date + '.pdf';
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeFile } = await import('@tauri-apps/plugin-fs');
+      const filePath = await save({ defaultPath: defaultName, filters: [{ name: 'PDF Document', extensions: ['pdf'] }] });
+      if (filePath) {
+        const pdfBlob = pdf.output('blob');
+        const buf = await pdfBlob.arrayBuffer();
+        await writeFile(filePath, new Uint8Array(buf));
+      }
+    } catch { pdf.save(defaultName); }
+  } catch (e) {
+    console.error('PDF export error:', e);
+    alert('导出 PDF 失败：' + (e.message || e));
+  } finally {
+    isPdfExporting.value = false;
+  }
+};
+
+// ── HTML 导出 ──
+const exportHTML = async () => {
+  if (isHtmlExporting.value) return;
+  isHtmlExporting.value = true;
+  try {
+    const report = pdfSections.value;
+    const fullMeta = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>决策研判简报</title>
+  <style>body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f1f5f9;padding:40px 20px;margin:0;}</style>
+</head>
+<body>
+${report.fullHTML}
+</body>
+</html>`;
+
+    const date = new Date().toLocaleDateString('zh-CN').replace(/\//g, '-');
+    const defaultName = '决策研判简报_' + date + '.html';
+    try {
+      const { save } = await import('@tauri-apps/plugin-dialog');
+      const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+      const filePath = await save({ defaultPath: defaultName, filters: [{ name: 'HTML Document', extensions: ['html'] }] });
+      if (filePath) { await writeTextFile(filePath, fullMeta); }
+    } catch {
+      const blob = new Blob(['﻿' + fullMeta], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = defaultName; a.click();
+      URL.revokeObjectURL(url);
+    }
+  } catch (e) {
+    console.error('HTML export error:', e);
+    alert('导出 HTML 失败：' + (e.message || e));
+  } finally {
+    isHtmlExporting.value = false;
   }
 };
 
