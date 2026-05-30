@@ -1337,10 +1337,13 @@ const exportChart = async (type) => {
     const chart = charts.value[type];
     if(chart) {
         const url = chart.getDataURL({ type: 'png', pixelRatio: 3, backgroundColor: type === 'scatter' ? '#0a192f' : '#fff' });
+        const defaultName = `DeepBayes_${type}_${Date.now()}.png`;
         
         try {
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
             const filePath = await save({
-                defaultPath: `DeepBayes_${type}_${Date.now()}.png`,
+                defaultPath: defaultName,
                 filters: [{ name: 'PNG Image', extensions: ['png'] }]
             });
             
@@ -1355,7 +1358,11 @@ const exportChart = async (type) => {
                 await writeFile(filePath, bytes);
             }
         } catch(e) {
-            console.error("导出图表失败:", e);
+            console.warn("Tauri native save failed or not in Tauri environment, falling back to browser download:", e);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = defaultName;
+            a.click();
         }
     }
 };
@@ -1374,18 +1381,30 @@ const exportCSV = async () => {
         ].join(','));
     });
     
+    const csvContent = csvRows.join('\n');
+    const defaultName = `DeepBayes_Report_${Date.now()}.csv`;
+    
     try {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
         const filePath = await save({
-            defaultPath: `DeepBayes_Report_${Date.now()}.csv`,
+            defaultPath: defaultName,
             filters: [{ name: 'CSV Document', extensions: ['csv'] }]
         });
         
         if (filePath) {
             // Write to local disk with Tauri Native FS Write
-            await writeTextFile(filePath, csvRows.join('\n'));
+            await writeTextFile(filePath, csvContent);
         }
     } catch(e) {
-        console.error("导出数据表失败:", e);
+        console.warn("Tauri native save failed or not in Tauri environment, falling back to browser download:", e);
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = defaultName;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 };
 
@@ -1401,7 +1420,8 @@ const exportBenchmarkPDF = async () => {
     const html2canvas = (await import('html2canvas')).default;
     const { jsPDF } = await import('jspdf');
     const res = benchmarkResults.value;
-    const report = buildBenchmarkSections();
+    const radarImg = benchmarkRadarChart ? benchmarkRadarChart.getDataURL({ type: 'png', pixelRatio: 3, backgroundColor: '#fff' }) : null;
+    const report = buildBenchmarkSections(radarImg);
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     const margin = 14;
@@ -1419,12 +1439,12 @@ const exportBenchmarkPDF = async () => {
       document.body.appendChild(container);
       await new Promise(r => setTimeout(r, 200));
       const canvas = await html2canvas(container, {
-        scale: 1.5, useCORS: true, logging: false,
+        scale: 3.0, useCORS: true, logging: false,
         width: 800, height: container.scrollHeight,
       });
       document.body.removeChild(container);
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgData = canvas.toDataURL('image/png');
       const imgHeight = (canvas.height * contentWidth) / canvas.width;
 
       if (imgHeight <= usableHeight) {
@@ -1432,7 +1452,7 @@ const exportBenchmarkPDF = async () => {
           pdf.addPage();
           currentY = margin;
         }
-        pdf.addImage(imgData, 'JPEG', margin, currentY, contentWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', margin, currentY, contentWidth, imgHeight);
         currentY += imgHeight + 5;
       } else {
         if (i > 0) { pdf.addPage(); currentY = margin; }
@@ -1440,7 +1460,7 @@ const exportBenchmarkPDF = async () => {
         let pn = 0;
         while (remaining > 0) {
           if (pn > 0) { pdf.addPage(); currentY = margin; }
-          pdf.addImage(imgData, 'JPEG', margin, currentY - pn * usableHeight, contentWidth, imgHeight);
+          pdf.addImage(imgData, 'PNG', margin, currentY - pn * usableHeight, contentWidth, imgHeight);
           remaining -= usableHeight;
           pn++;
         }
@@ -1471,7 +1491,8 @@ const exportBenchmarkHTML = async () => {
   if (isBenchmarkHtmlExporting.value || !benchmarkResults.value) return;
   isBenchmarkHtmlExporting.value = true;
   try {
-    const report = buildBenchmarkSections();
+    const radarImg = benchmarkRadarChart ? benchmarkRadarChart.getDataURL({ type: 'png', pixelRatio: 3, backgroundColor: '#fff' }) : null;
+    const report = buildBenchmarkSections(radarImg);
       const fullMeta = '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1.0">\n  <title>\u5bf9\u6807\u6f14\u7b97\u62a5\u544a</title>\n  <style>body{background:#f1f5f9;padding:40px 20px;margin:0;font-family:sans-serif}</style>\n</head>\n<body>\n' + report.fullHTML + '\n</body>\n</html>';
     const defaultName = '对标演算报告_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '-') + '.html';
     try {
@@ -1495,7 +1516,7 @@ const exportBenchmarkHTML = async () => {
 };
 
 // 构建对标演算报告的 sections 和 fullHTML
-const buildBenchmarkSections = () => {
+const buildBenchmarkSections = (radarImg) => {
   const res = benchmarkResults.value;
   const match1 = res.matches && res.matches[0];
   const topPos = getTopFactors('pos');
@@ -1543,6 +1564,16 @@ const buildBenchmarkSections = () => {
       ${match1 ? '<p style="font-size:12px;color:#475569;line-height:1.8;padding:12px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;">新项目的预期表现约为 <strong>' + (res.expected_y||0).toFixed(3) + '</strong>，' + (res.expected_delta>=0?'高于历史平均水平。':'低于历史平均水平。') + '与它条件最相似的历史对象是『' + (displayMap[match1.node_name]||match1.node_name) + '』（匹配度 ' + (match1.similarity||0).toFixed(1) + '%），该对象的实际表现为 ' + (match1.actual_y||0).toFixed(3) + '。</p>' : ''}
     </div>
   </div>` });
+
+  // === S1.5: 多维特征对比（雷达图） ===
+  if (radarImg) {
+    sections.push({ html: `<div style="${coverCSS}padding:0 10px;">
+      <div style="${sectionCSS}text-align:center;">
+        <h2 style="font-size:17px;font-weight:800;color:#4f46e5;margin:0 0 12px;text-align:left;">◆ 多维特征对比（雷达图）</h2>
+        <img src="${radarImg}" style="width:400px;height:auto;margin:auto;display:block;" />
+      </div>
+    </div>` });
+  }
 
   // === S1: 因素贡献拆解 ===
   if (res.factors && res.factors.length > 0) {

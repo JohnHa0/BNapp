@@ -860,7 +860,7 @@ const renderSectionCanvas = async (html2canvas, sectionHTML) => {
   document.body.appendChild(container);
   await new Promise(r => setTimeout(r, 200));
   const canvas = await html2canvas(container, {
-    scale: 1.5, useCORS: true, logging: false,
+    scale: 3.0, useCORS: true, logging: false,
     width: 800, height: container.scrollHeight,
   });
   document.body.removeChild(container);
@@ -884,7 +884,7 @@ const exportPDF = async () => {
     for (let i = 0; i < report.sections.length; i++) {
       const sectionHTML = report.sections[i].html;
       const canvas = await renderSectionCanvas(html2canvas, sectionHTML);
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgData = canvas.toDataURL('image/png');
       const imgHeight = (canvas.height * contentWidth) / canvas.width;
 
       if (imgHeight <= usableHeight) {
@@ -893,7 +893,7 @@ const exportPDF = async () => {
           pdf.addPage();
           currentY = margin;
         }
-        pdf.addImage(imgData, 'JPEG', margin, currentY, contentWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', margin, currentY, contentWidth, imgHeight);
         currentY += imgHeight + 5;
       } else {
         // 超过一页——切片渲染
@@ -903,7 +903,7 @@ const exportPDF = async () => {
         const yOffsets = [margin];
         while (remaining > 0) {
           if (pn > 0) { pdf.addPage(); currentY = margin; }
-          pdf.addImage(imgData, 'JPEG', margin, currentY - pn * usableHeight, contentWidth, imgHeight);
+          pdf.addImage(imgData, 'PNG', margin, currentY - pn * usableHeight, contentWidth, imgHeight);
           remaining -= usableHeight;
           pn++;
         }
