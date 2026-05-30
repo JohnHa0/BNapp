@@ -58,7 +58,7 @@
               <!-- 标题底部辉光 -->
               <span class="absolute -bottom-1 left-0 w-full h-px bg-gradient-to-r from-indigo-500/40 via-cyan-400/40 to-transparent opacity-0 group-hover/title:opacity-100 transition-opacity duration-500"></span>
             </h1>
-            <span class="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md bg-white/8 border border-white/10 text-indigo-300/90 hover:bg-white/12 transition-colors select-none" title="版本号">v1.0.8</span>
+            <span class="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md bg-white/8 border border-white/10 text-indigo-300/90 hover:bg-white/12 transition-colors select-none" title="版本号">v1.0.9</span>
           </div>
           <div class="flex items-center gap-2 mt-1.5">
             <span class="text-sm font-semibold text-slate-400 tracking-wide"><span class="inline-block w-1 h-1 rounded-full bg-indigo-400/60 mr-2 align-middle shadow-sm shadow-indigo-400/30"></span>贝叶斯层次网络分析平台</span>
@@ -196,7 +196,7 @@
         <span class="flex items-center gap-2 font-semibold text-slate-500">
           <span class="inline-block w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/40"></span>
           DeepBayes
-          <span class="text-slate-400 font-normal">v1.0.8</span>
+          <span class="text-slate-400 font-normal">v1.0.9</span>
         </span>
         <span class="w-px h-3.5 bg-slate-200"></span>
         <span class="text-slate-400 tracking-wide">&copy; 海外安全风险监测预警创新研究院</span>
